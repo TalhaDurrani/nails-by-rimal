@@ -1,5 +1,6 @@
 import { AuthProvider } from "@/context/AuthContext";
 import { CartProvider } from "@/context/CartContext";
+import { GuestCartProvider } from "@/context/GuestCartContext";
 import { Metadata } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -10,15 +11,14 @@ import { TanStackQueryProvider } from "@/lib/providers/query-provider";
 import { Toaster } from "sonner";
 import { MainLayout } from "@/components/MainLayout";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { DemoBanner } from "@/components/DemoBanner";
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
-  title: "E-Commerce",
-  description: "E-Commerce App",
+  title: "Nails by Rimal - Handmade Press-On Nails",
+  description: "Premium handcrafted press-on nails from Pakistan. Cash on Delivery available.",
 };
 
 export default function RootLayout({
@@ -30,30 +30,31 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning className={cn("font-sans", geist.variable)}>
       <head>
         <link rel="icon" type="image/svg+xml" href="/icon.svg" />
-        <title>My App</title>
-        <meta name="description" content="My App is a..." />
+        <title>Nails by Rimal</title>
+        <meta name="description" content="Premium handcrafted press-on nails. COD available." />
       </head>
       <body className="bg-background min-h-screen">
         <ErrorBoundary>
           <TanStackQueryProvider>
             <AuthProvider>
-              <CartProvider>
-                <ThemeProvider
-                  attribute="class"
-                  defaultTheme="system"
-                  enableSystem
-                  disableTransitionOnChange
-                >
-                  <SidebarProvider>
-                    <Sidebar />
-                    <SidebarInset>
-                      <DemoBanner />
-                      <Navbar />
-                      <MainLayout>{children}</MainLayout>
-                    </SidebarInset>
-                  </SidebarProvider>
-                </ThemeProvider>
-              </CartProvider>
+              <GuestCartProvider>
+                <CartProvider>
+                  <ThemeProvider
+                    attribute="class"
+                    defaultTheme="system"
+                    enableSystem
+                    disableTransitionOnChange
+                  >
+                    <SidebarProvider>
+                      <Sidebar />
+                      <SidebarInset>
+                        <Navbar />
+                        <MainLayout>{children}</MainLayout>
+                      </SidebarInset>
+                    </SidebarProvider>
+                  </ThemeProvider>
+                </CartProvider>
+              </GuestCartProvider>
             </AuthProvider>
           </TanStackQueryProvider>
         </ErrorBoundary>

@@ -2,10 +2,10 @@ import { Suspense } from "react";
 import CategoryPage from "@/components/CategoryPage";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 
-export default function ElectronicsPage() {
+export default function GiftSetsPage() {
   return (
     <Suspense fallback={<LoadingSpinner />}>
-      <CategoryPage categoryName="Electronics" categoryId={3} />
+      <CategoryPage categoryName="Gift Sets" categoryId={3} />
     </Suspense>
   );
 }

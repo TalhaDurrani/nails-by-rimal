@@ -8,24 +8,6 @@ interface OrderItemInput {
   price: number;
 }
 
-/**
- * Map Polar payment status to order_status enum
- */
-export function mapPolarStatusToOrderStatus(polarStatus: string): OrderStatus {
-	switch (polarStatus.toLowerCase()) {
-		case 'paid':
-			return 'processing'
-		case 'pending':
-			return 'pending'
-		case 'failed':
-		case 'canceled':
-		case 'cancelled':
-			return 'cancelled'
-		default:
-			return 'pending'
-	}
-}
-
 interface CreateOrderParams {
   userId: string;
   items: OrderItemInput[];
@@ -261,3 +243,4 @@ export const orderService = {
     return true;
   },
 };
+

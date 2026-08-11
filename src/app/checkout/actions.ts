@@ -1,166 +1,260 @@
 'use server'
 
-import { Polar } from '@polar-sh/sdk'
-import { createServerSupabase, getAuthenticatedUser } from '@/lib/supabase/server'
-import { ProductType } from '@/types'
-
-const polar = new Polar({
-	accessToken: process.env.POLAR_ACCESS_TOKEN!,
-	server: 'sandbox',
-})
+import { createServerSupabase } from '@/lib/supabase/server'
+import { OrderType, AddressType } from '@/types'
 
 /**
- * Get an existing Polar product for e-commerce checkouts
- * Uses POLAR_PRODUCT_ID if set, otherwise finds the first non-archived product
+ * Validate Pakistani province
  */
-async function getPolarProduct(): Promise<string> {
-	// If product ID is explicitly provided, use it
-	const productId = process.env.POLAR_PRODUCT_ID
-	if (productId) {
-		return productId
-	}
+const VALID_PROVINCES = [
+  'Punjab',
+  'Sindh',
+  'Khyber Pakhtunkhwa',
+  'Balochistan',
+  'Islamabad Capital Territory',
+  'Gilgit-Baltistan',
+  'Azad Kashmir',
+]
 
-	// Otherwise, list existing products and find one
-	// When using organization token, don't pass organizationId
-	const organizationId = process.env.POLAR_ORG_ID
-	const listParams = organizationId ? { organizationId } : {}
-
-	try {
-		const productsIterator = await polar.products.list(listParams)
-
-		// Iterate through pages to find first non-archived product
-		for await (const page of productsIterator) {
-			if (page?.result?.items) {
-				const product = page.result.items.find(
-					(p: { isArchived?: boolean; id?: string }) => !p.isArchived
-				)
-
-				if (product?.id) {
-					return product.id
-				}
-			}
-		}
-
-		throw new Error('No active Polar products found. Please create a product in Polar or set POLAR_PRODUCT_ID environment variable.')
-	} catch (error) {
-		console.error('Error getting Polar product:', error)
-		throw new Error(`Failed to get Polar product: ${error instanceof Error ? error.message : 'Unknown error'}`)
-	}
+interface CheckoutFormData {
+  customerName: string
+  customerPhone: string
+  customerEmail?: string
+  street: string
+  city: string
+  postalCode: string
+  province: string
+  cartItems: Array<{
+    productVariantId: number
+    quantity: number
+  }>
 }
 
-export async function createPolarCheckout() {
-	try {
-		// Get authenticated user
-		const user = await getAuthenticatedUser()
-		if (!user) {
-			throw new Error('Unauthorized')
-		}
-
-		// Get Supabase client
-		const supabase = await createServerSupabase()
-
-		// Get active cart
-		const { data: cart, error: cartError } = await supabase
-			.from('carts')
-			.select('*')
-			.eq('user_id', user.id)
-			.eq('status', 'active')
-			.single()
-
-		if (cartError || !cart) {
-			throw new Error('No active cart found')
-		}
-
-		// Get cart items with product details
-		const { data: cartItems, error: itemsError } = await supabase
-			.from('cart_items')
-			.select(
-				`
-				*,
-				product:products(*)
-			`
-			)
-			.eq('cart_id', cart.id)
-
-		if (itemsError || !cartItems || cartItems.length === 0) {
-			throw new Error('Cart is empty')
-		}
-
-		// Get existing Polar product
-		const polarProductId = await getPolarProduct()
-
-		// Calculate total amount for all cart items
-		let totalAmountInCents = 0
-		const cartItemsData: Array<{
-			product_id: string
-			quantity: number
-			price: number
-			product_title: string
-		}> = []
-
-		for (const item of cartItems) {
-			const productId = item.product_id
-			const product = item.product as ProductType | null | undefined
-			const itemTotalInCents = Math.round(item.price * item.quantity * 100)
-			totalAmountInCents += itemTotalInCents
-
-			cartItemsData.push({
-				product_id: productId,
-				quantity: item.quantity,
-				price: item.price,
-				product_title: product?.title || '',
-			})
-		}
-
-		// Build ad-hoc prices object for Polar
-		// Polar only allows ONE static price per product, so we combine all items into a single total
-		// Store individual cart items in metadata as JSON for webhook processing
-		const prices: Record<string, Array<{
-			amountType: 'fixed'
-			priceAmount: number
-			priceCurrency: string
-			metadata?: Record<string, string>
-		}>> = {}
-
-		// Single price entry with total amount and all items in metadata
-		prices[polarProductId] = [{
-			amountType: 'fixed' as const,
-			priceAmount: totalAmountInCents,
-			priceCurrency: 'usd' as const,
-			metadata: {
-				cart_items: JSON.stringify(cartItemsData),
-				total_items: cartItems.length.toString(),
-			},
-		}]
-
-		// Get base URL for redirect URLs
-		const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-
-		// Create Polar checkout session
-		// Use the single Polar product ID with multiple price entries
-		const checkout = await polar.checkouts.create({
-			products: [polarProductId], // Single Polar product ID
-			prices: prices as Parameters<typeof polar.checkouts.create>[0]['prices'],
-			externalCustomerId: user.id, // Map to Supabase user ID
-			successUrl: `${baseUrl}/checkout/success?checkout_id={CHECKOUT_ID}`,
-			customerEmail: user.email || undefined,
-		})
-
-		if (!checkout.url) {
-			throw new Error('Failed to create checkout session')
-		}
-
-		return {
-			success: true,
-			checkoutUrl: checkout.url,
-			checkoutId: checkout.id,
-		}
-	} catch (error) {
-		console.error('Error creating Polar checkout:', error)
-		return {
-			success: false,
-			error: error instanceof Error ? error.message : 'Internal server error',
-		}
-	}
+interface CheckoutResult {
+  success: boolean
+  orderNumber?: string
+  orderId?: number
+  error?: string
 }
 
+/**
+ * Create order with COD payment method
+ * IMPORTANT: Prices are recomputed server-side — client prices are not trusted
+ * 
+ * Flow:
+ * 1. Validate shipping address
+ * 2. Look up each product_variant to get current price
+ * 3. Recompute subtotal/total server-side
+ * 4. Create order in database
+ * 5. Return order_number for confirmation page
+ */
+export async function createCODOrder(
+  data: CheckoutFormData
+): Promise<CheckoutResult> {
+  try {
+    // ============================================
+    // 1. VALIDATE INPUT
+    // ============================================
+    
+    if (!data.customerName?.trim()) {
+      return { success: false, error: 'Customer name is required' }
+    }
+    
+    if (!data.customerPhone?.trim()) {
+      return { success: false, error: 'Customer phone is required' }
+    }
+    
+    if (!data.street?.trim() || !data.city?.trim() || !data.postalCode?.trim()) {
+      return { success: false, error: 'Complete address is required' }
+    }
+    
+    if (!VALID_PROVINCES.includes(data.province)) {
+      return { success: false, error: 'Invalid province selected' }
+    }
+    
+    if (!data.cartItems || data.cartItems.length === 0) {
+      return { success: false, error: 'Cart is empty' }
+    }
+
+    const supabase = await createServerSupabase()
+
+    // ============================================
+    // 2. FETCH PRODUCT VARIANTS & COMPUTE PRICES
+    // ============================================
+    
+    // Get all variant IDs from the request
+    const variantIds = data.cartItems.map(item => item.productVariantId)
+    
+    // Fetch variants WITH their product base_price
+    const { data: variants, error: variantError } = await supabase
+      .from('product_variants')
+      .select(`
+        id,
+        product_id,
+        stock_quantity,
+        price_override,
+        products:product_id (
+          base_price,
+          is_published
+        )
+      `)
+      .in('id', variantIds)
+    
+    if (variantError) {
+      console.error('Error fetching variants:', variantError)
+      return { success: false, error: 'Failed to fetch product details' }
+    }
+    
+    if (!variants || variants.length === 0) {
+      return { success: false, error: 'Products not found' }
+    }
+
+    // Build variant map for quick lookup
+    const variantMap = new Map(
+      (variants as any[]).map(v => [v.id, v])
+    )
+
+    // ============================================
+    // 3. VALIDATE STOCK & COMPUTE ORDER TOTALS
+    // ============================================
+    
+    let subtotal = 0
+    const orderItems: Array<{
+      product_variant_id: number
+      quantity: number
+      price_at_purchase: number
+    }> = []
+
+    for (const cartItem of data.cartItems) {
+      const variant = variantMap.get(cartItem.productVariantId)
+      
+      if (!variant) {
+        return {
+          success: false,
+          error: `Product variant ${cartItem.productVariantId} not found`,
+        }
+      }
+
+      // Check product is published
+      if (!variant.products?.is_published) {
+        return {
+          success: false,
+          error: 'One or more products are not available',
+        }
+      }
+
+      // Check stock
+      if (variant.stock_quantity < cartItem.quantity) {
+        return {
+          success: false,
+          error: `Insufficient stock for variant ${variant.id}. Available: ${variant.stock_quantity}`,
+        }
+      }
+
+      // Calculate price for THIS variant
+      // Use price_override if set, otherwise use product base_price
+      const unitPrice = variant.price_override ?? variant.products.base_price
+      
+      if (!unitPrice || unitPrice <= 0) {
+        return {
+          success: false,
+          error: `Invalid price for variant ${variant.id}`,
+        }
+      }
+
+      const itemTotal = unitPrice * cartItem.quantity
+      subtotal += itemTotal
+
+      orderItems.push({
+        product_variant_id: variant.id,
+        quantity: cartItem.quantity,
+        price_at_purchase: unitPrice,
+      })
+    }
+
+    // ============================================
+    // 4. ADD SHIPPING FEE
+    // ============================================
+    
+    const shippingFee = 500 // Flat rate in PKR
+    const total = subtotal + shippingFee
+
+    // ============================================
+    // 5. CREATE ORDER IN DATABASE
+    // ============================================
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    // user_id can be null for guest checkout
+    const userId = user?.id ?? null
+
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .insert([
+        {
+          user_id: userId,
+          customer_name: data.customerName.trim(),
+          customer_phone: data.customerPhone.trim(),
+          customer_email: data.customerEmail?.trim() ?? null,
+          address_street: data.street.trim(),
+          address_city: data.city.trim(),
+          address_postal_code: data.postalCode.trim(),
+          address_province: data.province,
+          subtotal,
+          shipping_fee: shippingFee,
+          total,
+          status: 'pending',
+          payment_method: 'cod',
+        },
+      ])
+      .select()
+      .single()
+
+    if (orderError) {
+      console.error('Error creating order:', orderError)
+      return { success: false, error: 'Failed to create order' }
+    }
+
+    if (!order) {
+      return { success: false, error: 'Order creation failed' }
+    }
+
+    // ============================================
+    // 6. CREATE ORDER ITEMS
+    // ============================================
+    
+    const itemsToInsert = orderItems.map(item => ({
+      order_id: order.id,
+      product_variant_id: item.product_variant_id,
+      quantity: item.quantity,
+      price_at_purchase: item.price_at_purchase,
+    }))
+
+    const { error: itemsError } = await supabase
+      .from('order_items')
+      .insert(itemsToInsert)
+
+    if (itemsError) {
+      console.error('Error creating order items:', itemsError)
+      // Try to clean up the order
+      await supabase.from('orders').delete().eq('id', order.id)
+      return { success: false, error: 'Failed to create order items' }
+    }
+
+    // ============================================
+    // 7. RETURN SUCCESS WITH ORDER NUMBER
+    // ============================================
+    
+    return {
+      success: true,
+      orderNumber: order.order_number,
+      orderId: order.id,
+    }
+  } catch (error) {
+    console.error('Unexpected error in createCODOrder:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error occurred',
+    }
+  }
+}

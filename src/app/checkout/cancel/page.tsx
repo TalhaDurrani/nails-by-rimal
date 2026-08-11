@@ -3,43 +3,42 @@
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { XCircle } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 
-export default function CancelPage() {
+export default function ErrorPage() {
   const router = useRouter();
 
   return (
-    <div className="bg-background min-h-screen py-12">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 py-12">
       <Card className="mx-auto max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
-            <XCircle className="h-10 w-10 text-red-600" />
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-amber-100">
+            <AlertCircle className="h-10 w-10 text-amber-600" />
           </div>
-          <CardTitle className="text-2xl">Checkout Cancelled</CardTitle>
+          <CardTitle className="text-2xl">Something Went Wrong</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2 text-center">
             <p className="text-muted-foreground">
-              Your checkout was cancelled. No charges were made.
+              There was an issue processing your order.
             </p>
             <p className="text-muted-foreground">
-              Your items are still in your cart and ready for checkout when
-              you&apos;re ready.
+              Your cart is still available. Please try again.
             </p>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
+          <div className="flex flex-col gap-2">
             <Button
               onClick={() => router.push("/cart")}
-              variant="outline"
-              className="cursor-pointer"
+              className="w-full cursor-pointer"
             >
-              Return to Cart
+              Back to Cart
             </Button>
             <Button
               onClick={() => router.push("/checkout")}
-              className="cursor-pointer"
+              variant="outline"
+              className="w-full cursor-pointer"
             >
-              Try Again
+              Try Checkout Again
             </Button>
           </div>
         </CardContent>

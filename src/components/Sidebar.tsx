@@ -60,9 +60,15 @@ import {
 // Default icons for each category
 const categoryIcons: Record<string, React.ElementType> = {
   All: Home,
-  Clothing: Shirt,
-  Accessories: Watch,
-  Electronics: Smartphone,
+  "Press-On Nails": Shirt,
+  "Nail Accessories": Watch,
+  "Gift Sets": Package,
+  "Seasonal Collections": RefreshCw,
+  "Classic Styles": Shirt,
+  "Bridal Collection": Watch,
+  "Artistic Designs": Settings,
+  "Application Tools": Smartphone,
+  "Care Products": Watch,
 };
 
 export default function Sidebar() {
@@ -96,17 +102,13 @@ export default function Sidebar() {
     { name: "All", icon: Home, href: "/" },
     ...(categories || []).map((category) => ({
       name: category.name,
-      icon: categoryIcons[category.name] || Smartphone,
-      href: `/${category.name.toLowerCase()}`,
+      icon: categoryIcons[category.name] || Package,
+      href: `/${category.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`,
     })),
   ];
 
-  // Filter categories based on authentication status
-  const displayCategories = user
-    ? categoryItems
-    : categoryItems.filter((category) =>
-        ["All", "Electronics"].includes(category.name),
-      );
+  // All nail categories are public - no authentication filtering needed
+  const displayCategories = categoryItems;
 
   // Admin navigation items
   const adminNavItems = [

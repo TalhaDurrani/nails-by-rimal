@@ -8,7 +8,7 @@ import { useState, useMemo } from 'react'
 export interface FilterOptions {
   sortBy: 'price-asc' | 'price-desc' | 'name-asc' | 'name-desc' | 'default';
   stockFilter: 'all' | 'in-stock' | 'out-of-stock';
-  categoryFilter: 'all' | 'electronics' | 'clothing' | 'accessories';
+  categoryFilter: 'all' | 'press-on-nails' | 'nail-accessories' | 'gift-sets' | 'seasonal';
 }
 
 // Query Keys - Following TanStack Query key factory pattern
@@ -28,9 +28,19 @@ export const productKeys = {
 // Helper function to map category names to category_id
 const getCategoryId = (categoryName: string): number | null => {
   const categoryMap: { [key: string]: number } = {
-    electronics: 3,
-    clothing: 1,
-    accessories: 2,
+    'press-on-nails': 1,
+    'nail-accessories': 2,
+    'gift-sets': 3,
+    'seasonal': 4,
+    'classic': 5,
+    'bridal': 6,
+    'artistic': 7,
+    'tools': 8,
+    'care': 9,
+    // Keep old mappings for backward compatibility, but redirect to nail categories
+    electronics: 3, // Redirect to gift sets
+    clothing: 1, // Redirect to press-on nails
+    accessories: 2, // Redirect to nail accessories
   };
   return categoryMap[categoryName] || null;
 };
@@ -154,13 +164,9 @@ export function useProducts(options?: UseQueryOptions<ProductType[]>) {
     return processed;
   }, [searchTerm, filters, query.data]);
 
-  // Filter products based on user authentication
+  // Filter products based on user authentication - nail products are public
   const getFilteredProductsForUser = (user: unknown) => {
-    if (!user) {
-      return processedProducts.filter(
-        (product) => ![1, 2].includes(product.category_id || 0) // 1 = clothing, 2 = accessories
-      );
-    }
+    // All nail products are accessible to everyone
     return processedProducts;
   };
 
@@ -308,15 +314,11 @@ export function useFilteredProducts(
     return processed;
   }, [searchTerm, filters, productsQuery.data]);
 
-  // Filter products based on user authentication
+  // Filter products based on user authentication - nail products are public
   const displayProducts = useMemo(() => {
-    if (!user) {
-      return processedProducts.filter(
-        (product) => ![1, 2].includes(product.category_id || 0) // 1 = clothing, 2 = accessories
-      );
-    }
+    // All nail products are accessible to everyone
     return processedProducts;
-  }, [user, processedProducts]);
+  }, [processedProducts]);
 
   return {
     displayProducts,

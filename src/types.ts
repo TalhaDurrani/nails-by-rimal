@@ -11,6 +11,41 @@ export interface ProductType {
   updated_at?: string;
 }
 
+export interface ProductVariantType {
+  id: number;
+  product_id: string;
+  shape_id: number;
+  length_id: number;
+  finish_id: number;
+  stock_quantity: number;
+  price_override?: number;
+  sku?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ShapeType {
+  id: number;
+  name: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface LengthType {
+  id: number;
+  name: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface FinishType {
+  id: number;
+  name: string;
+  swatch_hex?: string;
+  is_active: boolean;
+  created_at: string;
+}
+
 export interface CartItemType {
   id: number;
   cart_id: number;
@@ -50,18 +85,27 @@ export interface OrderItemType {
 
 export type OrderStatus =
   | "pending"
-  | "processing"
+  | "confirmed"
   | "shipped"
   | "delivered"
   | "cancelled";
 
 export interface OrderType {
   id: number;
-  user_id: string;
+  order_number: string;
+  user_id: string | null;
+  customer_name: string;
+  customer_phone: string;
+  customer_email?: string;
+  address_street: string;
+  address_city: string;
+  address_postal_code: string;
+  address_province: string;
   status: OrderStatus;
+  subtotal: number;
+  shipping_fee: number;
   total: number;
-  shipping_address_id: number;
-  payment_method?: string;
+  payment_method: string;
   payment_id?: string;
   created_at?: string;
   updated_at?: string;

@@ -48,24 +48,8 @@ export default function CategoryPage({
 		)
 	}, [searchTerm, products])
 
-	// Client-side authentication check (backup)
-	useEffect(() => {
-		// If not logged in and trying to access restricted categories (Clothing or Accessories)
-		if (
-			!user &&
-			(categoryName === 'Clothing' || categoryName === 'Accessories')
-		) {
-			router.push('/signin')
-		}
-	}, [user, categoryName, router])
-
-	// If not authenticated and trying to access a restricted category, don't render the content
-	if (
-		!user &&
-		(categoryName === 'Clothing' || categoryName === 'Accessories')
-	) {
-		return null
-	}
+	// All nail categories are public - no authentication needed
+	// (Removed old clothing/accessories restrictions)
 
 	return (
 		<ErrorBoundary>

@@ -1,0 +1,24 @@
+-- DO NOT RUN YET.
+--
+-- products still has leftover price, stock, and sku columns from 
+-- before variants existed — sitting right alongside base_price and 
+-- the separate product_variants table (which has its own 
+-- stock_quantity, price_override, sku). Two competing sources of 
+-- truth. Before touching this, find out which one your app actually 
+-- reads.
+--
+-- Run these in your terminal, from the project root:
+--
+--   grep -rn "\.price\b" --include="*.ts" --include="*.tsx" app/ components/ lib/ | grep -v "base_price\|price_override\|price_at_purchase"
+--   grep -rn "\.stock\b" --include="*.ts" --include="*.tsx" app/ components/ lib/ | grep -v "stock_quantity"
+--   grep -rn "\.sku\b"   --include="*.ts" --include="*.tsx" app/ components/ lib/
+--
+-- If those come back empty (or only match code you're already 
+-- planning to change), uncomment and run the three lines below.
+-- If something real still reads products.price / .stock / .sku, 
+-- tell me what you found before dropping anything — that code needs 
+-- to be pointed at product_variants first.
+
+-- alter table public.products drop column if exists price;
+-- alter table public.products drop column if exists stock;
+-- alter table public.products drop column if exists sku;

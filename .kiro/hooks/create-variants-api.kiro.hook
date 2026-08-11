@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Create Variants API",
+  "description": "Create API route for fetching product variants",
+  "version": "1",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "runCommand",
+    "command": ""
+  }
+}
