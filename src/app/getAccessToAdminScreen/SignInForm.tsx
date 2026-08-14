@@ -20,12 +20,7 @@ export default function SignInForm() {
     setLoading(true)
     setError('')
 
-    try {
-      if (email === 'talha@rimal.com' && password === 'durrani82542') {
-        // Direct admin bypass so you don't need to verify via email link
-        router.push('/admin')
-        return
-      }
+
 
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
