@@ -25,14 +25,12 @@ export default function NotFoundPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-col justify-center gap-2 sm:flex-row">
-            <Button
-              render={<Link href="/" />}
-              nativeButton={false}
-              className="cursor-pointer"
-            >
-              <Home className="mr-2 h-4 w-4" />
-              Go Home
-            </Button>
+            <Link href="/">
+              <Button className="cursor-pointer">
+                <Home className="mr-2 h-4 w-4" />
+                Go Home
+              </Button>
+            </Link>
           </div>
           <p className="text-muted-foreground text-sm">
             Or try searching for what you need using the search bar above.

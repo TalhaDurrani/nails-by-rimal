@@ -45,11 +45,9 @@ export function OrderCard({ order, onDelete }: OrderCardProps) {
               className={`rounded-full px-2 py-1 text-xs ${
                 order.status === "delivered"
                   ? "bg-green-100 text-green-800"
-                  : order.status === "shipped"
+                  : order.status === "confirmed"
                     ? "bg-blue-100 text-blue-800"
-                    : order.status === "processing"
-                      ? "bg-orange-100 text-orange-800"
-                      : order.status === "cancelled"
+                    : order.status === "cancelled"
                         ? "bg-red-100 text-red-800"
                         : "bg-gray-100 text-gray-800"
               }`}
@@ -58,9 +56,9 @@ export function OrderCard({ order, onDelete }: OrderCardProps) {
             </span>
             {order.status !== "cancelled" && (
               <Button
-                variant="destructive"
+                variant="default"
                 size="sm"
-                className="ml-2 cursor-pointer"
+                className="ml-2 cursor-pointer bg-red-600 hover:bg-red-700 text-white"
                 onClick={handleDeleteOrder}
                 disabled={deleteOrder.isPending}
               >

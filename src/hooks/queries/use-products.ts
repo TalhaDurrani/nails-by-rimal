@@ -165,7 +165,7 @@ export function useProducts(options?: UseQueryOptions<ProductType[]>) {
   }, [searchTerm, filters, query.data]);
 
   // Filter products based on user authentication - nail products are public
-  const getFilteredProductsForUser = (user: unknown) => {
+  const getFilteredProductsForUser = () => {
     // All nail products are accessible to everyone
     return processedProducts;
   };
@@ -251,7 +251,6 @@ export function useProductsByCategory(
 
 // Enhanced hook for filtered products with TanStack Query
 export function useFilteredProducts(
-  user: unknown,
   initialFilters?: Partial<FilterOptions>
 ) {
   const [searchTerm, setSearchTerm] = useState('');

