@@ -1,4 +1,4 @@
-import { AddressType, OrderType, OrderStatus } from "@/types";
+import { AddressType, OrderType } from "@/types";
 import { supabase } from "@/lib/supabase/client";
 import { toast } from "sonner";
 

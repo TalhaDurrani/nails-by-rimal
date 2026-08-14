@@ -83,7 +83,7 @@ export function useAuthForm({
       } else {
         await signIn(formData.email, formData.password);
       }
-      router.push("/");
+   router.push('/admin');
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error

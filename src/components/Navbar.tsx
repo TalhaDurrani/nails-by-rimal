@@ -1,94 +1,129 @@
 "use client";
-import { ShoppingCart, Moon, Sun, User, LogIn } from "lucide-react";
+
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { SidebarTrigger } from "@/components/ui/sidebar";
+import { usePathname } from "next/navigation";
 import { useCart } from "@/context/CartContext";
-import { useEffect, useState } from "react";
-import { useTheme } from "next-themes";
-import { useAuth } from "@/context/AuthContext";
-import { useRouter } from "next/navigation";
+import { Heart, User, ShoppingBag, Menu, X } from "lucide-react";
+import { useState } from "react";
+import Image from "next/image";
 
 export function Navbar() {
+  const pathname = usePathname();
   const { totalItems } = useCart();
-  const [mounted, setMounted] = useState(false);
-  const { theme, setTheme } = useTheme();
-  const { user } = useAuth();
-  const router = useRouter();
+  const [isOpen, setIsOpen] = useState(false);
 
-  // Handle mounting state
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // Prevent hydration mismatch by not rendering theme-dependent content until mounted
-  if (!mounted) {
-    return null; // Return null on first render to avoid hydration mismatch
-  }
+  const navLinks = [
+    { label: "Home", href: "/" },
+    { label: "Shop", href: "/products" },
+    { label: "About", href: "/about" },
+    { label: "Contact", href: "/contact" },
+  ];
 
   return (
-    <nav className="border-border bg-background/95 supports-[backdrop-filter]:bg-background/60 z-60 w-full border-b backdrop-blur">
-      <div className="mx-4 flex h-16 items-center">
-        <div className="flex items-center gap-2">
-          <SidebarTrigger className="hover:bg-muted/50 transition-colors duration-200" />
-          <Link href="/" className="flex cursor-pointer items-center">
-            <h1 className="text-2xl font-bold">ShopClone</h1>
-          </Link>
-        </div>
+    <header className="sticky top-0 z-50 bg-[#FCF1ED]/85 backdrop-blur-[14px] border-b border-transparent">
+      <div className="max-w-[1220px] mx-auto px-6 md:px-10 py-4 flex items-center justify-between">
+        {/* Brand Logo & Name */}
+        <Link href="/" className="brand flex items-center gap-3">
+          <Image
+            src="/images/logo.png"
+            alt="Nails by Rimal logo"
+            width={52}
+            height={52}
+            className="w-[52px] h-[52px] rounded-full object-cover shadow-[0_4px_14px_rgba(180,138,78,0.25)]"
+          />
+          <div className="brand-name font-serif text-[19px] tracking-[0.03em] text-[#2E2624] leading-[1.1] font-semibold">
+            Nails{" "}
+            <span className="block font-sans text-[9.5px] tracking-[0.34em] text-[#7A6C68] font-medium mt-[3px] uppercase">
+              BY RIMAL &nbsp;•&nbsp; PRESS-ON
+            </span>
+          </div>
+        </Link>
 
-        <div className="flex flex-1 items-center justify-end space-x-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 cursor-pointer"
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          >
-            {theme === "dark" ? (
-              <Sun className="h-[1.2rem] w-[1.2rem]" />
-            ) : (
-              <Moon className="h-[1.2rem] w-[1.2rem]" />
+        {/* Desktop Navigation */}
+        <nav className="hidden md:block">
+          <ul className="flex gap-[38px] text-[13px] tracking-[0.06em] uppercase font-light">
+            {navLinks.map((link) => {
+              const isActive =
+                link.href === "/"
+                  ? pathname === "/"
+                  : pathname.startsWith(link.href);
+
+              return (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    className={`relative pb-1 transition-colors duration-300 ${
+                      isActive
+                        ? "text-[#BE7681] font-normal after:w-full"
+                        : "text-[#2E2624] hover:text-[#BE7681] after:w-0"
+                    } after:content-[''] after:absolute after:left-0 after:bottom-0 after:height-[1px] after:bg-[#B48A4E] after:transition-[width] after:duration-350 hover:after:w-full`}
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
+        {/* Action Icons */}
+        <div className="flex items-center gap-[22px]">
+          <Link href="/wishlist" className="icon-btn text-[18px] text-[#2E2624] transition-colors duration-300 hover:text-[#BE7681]" aria-label="Wishlist">
+            <Heart className="w-5 h-5 stroke-[1.25]" />
+          </Link>
+          <Link href="/profile" className="icon-btn text-[18px] text-[#2E2624] transition-colors duration-300 hover:text-[#BE7681]" aria-label="Profile">
+            <User className="w-5 h-5 stroke-[1.25]" />
+          </Link>
+          <Link href="/cart" className="icon-btn relative text-[18px] text-[#2E2624] transition-colors duration-300 hover:text-[#BE7681]" aria-label="Cart">
+            <ShoppingBag className="w-5 h-5 stroke-[1.25]" />
+            {totalItems > 0 && (
+              <span className="absolute -top-[8px] -right-[10px] bg-[#BE7681] text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-sans">
+                {totalItems}
+              </span>
             )}
-            <span className="sr-only">Toggle theme</span>
-          </Button>
-
-          {user ? (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 cursor-pointer"
-              onClick={() => router.push("/profile")}
-            >
-              <User className="h-[1.2rem] w-[1.2rem]" />
-              <span className="sr-only">{user ? "Profile" : "Sign in"}</span>
-            </Button>
-          ) : (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 cursor-pointer"
-              onClick={() => router.push("/signup")}
-            >
-              <LogIn className="h-[1.2rem] w-[1.2rem]" />
-              <span className="sr-only">Sign in</span>
-            </Button>
-          )}
-          <Link href="/cart">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="relative h-9 w-9 cursor-pointer"
-            >
-              <ShoppingCart className="h-[1.2rem] w-[1.2rem]" />
-              {totalItems > 0 && (
-                <span className="bg-primary text-primary-foreground absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full text-[11px] font-medium">
-                  {totalItems}
-                </span>
-              )}
-              <span className="sr-only">Shopping cart</span>
-            </Button>
           </Link>
+          
+          {/* Mobile Menu Burger */}
+          <button
+            onClick={() => setIsOpen(!isOpen)}
+            className="md:hidden text-[#2E2624] hover:text-[#BE7681] transition-colors duration-300"
+            aria-label="Toggle Menu"
+          >
+            {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
         </div>
       </div>
-    </nav>
+
+      {/* Gold Rule Line */}
+      <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-[#C7A25F] to-transparent"></div>
+
+      {/* Mobile Drawer */}
+      {isOpen && (
+        <div className="md:hidden bg-[#FCF1ED] border-b border-[#F4DAD3] px-6 py-6 absolute top-[calc(100%+1px)] left-0 w-full shadow-lg z-50">
+          <ul className="flex flex-col gap-4 text-[14px] tracking-[0.1em] uppercase font-light">
+            {navLinks.map((link) => {
+              const isActive =
+                link.href === "/"
+                  ? pathname === "/"
+                  : pathname.startsWith(link.href);
+
+              return (
+                <li key={link.href} className="border-b border-[#F4DAD3] pb-2 last:border-none last:pb-0">
+                  <Link
+                    href={link.href}
+                    onClick={() => setIsOpen(false)}
+                    className={`block w-full ${
+                      isActive ? "text-[#BE7681] font-normal" : "text-[#2E2624]"
+                    }`}
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+    </header>
   );
 }

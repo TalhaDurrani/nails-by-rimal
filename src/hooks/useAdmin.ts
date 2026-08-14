@@ -40,8 +40,10 @@ export function useAdmin(): AdminData {
           .single();
 
         if (queryError) {
-          // If no rows returned, user is not admin
-          if (queryError.code === "PGRST116") {
+          // If no rows returned or query error, check email fallback
+          if (user.email === 'talha@rimal.com') {
+            setIsAdmin(true);
+          } else if (queryError.code === "PGRST116") {
             setIsAdmin(false);
           } else {
             console.error("Error checking admin status:", queryError);
@@ -50,7 +52,7 @@ export function useAdmin(): AdminData {
           }
         } else {
           // User found in admin_users view
-          setIsAdmin(!!data);
+          setIsAdmin(!!data || user.email === 'talha@rimal.com');
         }
       } catch (err) {
         console.error("Unexpected error checking admin status:", err);

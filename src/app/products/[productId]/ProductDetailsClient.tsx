@@ -1,26 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { useState, useEffect } from "react";
 import { useCart } from "@/context/CartContext";
 import { ProductType } from "@/types";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-  import { ShoppingCart, Heart, Share2, Minus, Plus } from "lucide-react";
-import Image from "next/image";
-import { AnimatePresence, motion } from "motion/react"; 
-
-
-import {
-  ChevronLeft,
-  ChevronRight,
-  Truck,
-  Shield,
-  RotateCcw,
-  Check,
-} from "lucide-react";
-import { ReviewTab } from "./_components/review-tab";
+import { useProducts } from "@/hooks/queries";
 
 type ProductDetailsClientProps = {
   product: ProductType;
@@ -30,352 +14,216 @@ export default function ProductDetailsClient({
   product,
 }: ProductDetailsClientProps) {
   const { addToCart } = useCart();
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const { products } = useProducts();
   const [quantity, setQuantity] = useState(1);
-  const [isAddedToCart, setIsAddedToCart] = useState(false);
+  const [activeTab, setActiveTab] = useState("desc");
   const [isFavorited, setIsFavorited] = useState(false);
-
-  // Get reviews for this product
-  // const { data: reviews = [], isLoading: reviewsLoading } = useGetProductReviews(
-  //   product.product_id,
-  // );
-
-  // Generate multiple images from the single image (mock data for demo)
-  const productImages = product.image
-    ? [product.image, product.image, product.image, product.image]
-    : ["/placeholder-product.jpg"];
-
- 
-
-  const handleAddToCart = async () => {
-    try {
-      for (let i = 0; i < quantity; i++) {
-        addToCart(product);
-      }
-      setIsAddedToCart(true);
-      setTimeout(() => setIsAddedToCart(false), 2000);
-    } catch (err) {
-      console.error("Error adding to cart:", err);
-    }
-  };
-
-  const incrementQuantity = () => {
-    if (quantity < product.stock) {
-      setQuantity(quantity + 1);
-    }
-  };
-
-  const decrementQuantity = () => {
-    if (quantity > 1) {
-      setQuantity(quantity - 1);
-    }
-  };
-
-  const nextImage = () => {
-    setSelectedImageIndex((prev) => (prev + 1) % productImages.length);
-  };
-
-  const prevImage = () => {
-    setSelectedImageIndex(
-      (prev) => (prev - 1 + productImages.length) % productImages.length,
-    );
-  };
-
   
+  // Selection states
+  const [shape, setShape] = useState("Almond");
+  const [length, setLength] = useState("Medium");
+  const [finishIndex, setFinishIndex] = useState(0);
 
-  // Mock rating distribution for demo
-  
+  // Animation for reveal elements
+  useEffect(() => {
+    const revealEls = document.querySelectorAll('.reveal');
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if(entry.isIntersecting){
+          entry.target.classList.add('in');
+          io.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.15 });
+
+    revealEls.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, [products]);
+
+  const handleAddToCart = () => {
+    for (let i = 0; i < quantity; i++) {
+      addToCart(product);
+    }
+  };
+
+  const relatedProducts = products?.filter(p => p.product_id !== product.product_id).slice(0, 4) || [];
 
   return (
-    <div className="bg-background min-h-screen">
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-12 grid grid-cols-1 gap-8 lg:grid-cols-2">
-          {/* Product Images */}
-          <div className="space-y-4">
-            <div className="bg-muted relative aspect-square overflow-hidden rounded-lg">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={selectedImageIndex}
-                  className="relative h-full w-full"
-                  initial={{ opacity: 0, scale: 1.1 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ duration: 0.3 }}
-                >
+    <main className="w-full flex flex-col min-h-screen">
+      <section style={{ paddingBottom: '30px', paddingTop: '40px' }}>
+        <div className="container">
+          <div className="breadcrumb" style={{ marginBottom: '40px' }}>
+            <Link href="/">Home</Link> / <Link href="/products">Shop</Link> / {product.title}
+          </div>
+
+          <div className="product-layout">
+            <div className="reveal in">
+              <div className="pd-gallery-main">
+                {product.image ? (
+                  <img src={product.image} alt={product.title} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="fan-wrap" id="pdFan">
+                    <div className="nail nail1"></div><div className="nail nail2"></div><div className="nail nail3"></div><div className="nail nail4"></div><div className="nail nail5"></div>
+                  </div>
+                )}
+              </div>
+              <div className="pd-thumbs">
+                <div className="pd-thumb active">
                   {product.image ? (
-                    <Image
-                      src={productImages[selectedImageIndex]}
-                      alt={product.title}
-                      fill
-                      className="object-contain p-4"
-                      loading="eager"
-                    />
+                    <img src={product.image} className="w-full h-full object-cover rounded-[12px]" />
                   ) : (
-                    <div className="bg-muted flex h-full w-full items-center justify-center">
-                      <span className="text-muted-foreground text-sm">
-                        No image available
-                      </span>
-                    </div>
+                    <div className="fan-wrap"><div className="nail nail1"></div><div className="nail nail2"></div><div className="nail nail3"></div><div className="nail nail4"></div><div className="nail nail5"></div></div>
                   )}
-                </motion.div>
-              </AnimatePresence>
+                </div>
+                {!product.image && (
+                  <>
+                    <div className="pd-thumb"><div className="fan-wrap"><div className="nail nail3"></div></div></div>
+                    <div className="pd-thumb"><div className="fan-wrap"><div className="nail nail2" style={{ transform: 'translate(-50%,-100%) rotate(0deg)' }}></div></div></div>
+                    <div className="pd-thumb"><div className="fan-wrap"><div className="nail nail4" style={{ transform: 'translate(-50%,-100%) rotate(0deg)' }}></div></div></div>
+                  </>
+                )}
+              </div>
+            </div>
 
-              {productImages.length > 1 && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="bg-background/80 absolute top-1/2 left-4 -translate-y-1/2 backdrop-blur-sm"
-                    onClick={prevImage}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
+            <div className="pd-info reveal in">
+              <div className="cat">Shape &middot; Length &middot; Collection</div>
+              <h1>{product.title}</h1>
+              <div className="stars">&#9733;&#9733;&#9733;&#9733;&#9733; <span>128 reviews</span></div>
+              <div className="pd-price">
+                <span className="was">Rs {(product.price * 1.2).toLocaleString()}</span>
+                Rs {product.price.toLocaleString()}
+              </div>
+              <p className="pd-desc">
+                {product.description || "A soft rosy-nude fan finished with a hand-painted pearl edge — our most-loved everyday set. Hypoallergenic adhesive tabs included, no glue required."}
+              </p>
 
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="bg-background/80 absolute top-1/2 right-4 -translate-y-1/2 backdrop-blur-sm"
-                    onClick={nextImage}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </>
-              )}
+              <div className="pd-block">
+                <div className="label">Shape</div>
+                <div className="opt-row">
+                  {["Almond", "Coffin", "Square", "Stiletto"].map(s => (
+                    <div key={s} className={`opt-pill ${shape === s ? 'active' : ''}`} onClick={() => setShape(s)}>{s}</div>
+                  ))}
+                </div>
+              </div>
 
-              <div className="absolute top-4 right-4 flex gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="bg-background/80 cursor-pointer backdrop-blur-sm"
+              <div className="pd-block">
+                <div className="label">Length</div>
+                <div className="opt-row">
+                  {["Short", "Medium", "Long"].map(l => (
+                    <div key={l} className={`opt-pill ${length === l ? 'active' : ''}`} onClick={() => setLength(l)}>{l}</div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pd-block">
+                <div className="label">Finish</div>
+                <div className="opt-row">
+                  <div className={`opt-swatch ${finishIndex === 0 ? 'active' : ''}`} style={{ background: 'linear-gradient(160deg,#F3D6CE,#E6AFAA)' }} onClick={() => setFinishIndex(0)}></div>
+                  <div className={`opt-swatch ${finishIndex === 1 ? 'active' : ''}`} style={{ background: 'linear-gradient(160deg,#F7ECD9,#C7A25F)' }} onClick={() => setFinishIndex(1)}></div>
+                  <div className={`opt-swatch ${finishIndex === 2 ? 'active' : ''}`} style={{ background: 'linear-gradient(160deg,#8C5560,#4B2A31)' }} onClick={() => setFinishIndex(2)}></div>
+                  <div className={`opt-swatch ${finishIndex === 3 ? 'active' : ''}`} style={{ background: 'linear-gradient(160deg,#FBF6F2,#EAD9CE)', border: '1px solid #eee' }} onClick={() => setFinishIndex(3)}></div>
+                </div>
+              </div>
+
+              <div className="qty-row">
+                <div className="label" style={{ margin: 0 }}>Quantity</div>
+                <div className="qty-box">
+                  <button onClick={() => setQuantity(Math.max(1, quantity - 1))}>&minus;</button>
+                  <span>{quantity}</span>
+                  <button onClick={() => setQuantity(quantity + 1)}>+</button>
+                </div>
+              </div>
+
+              <div className="pd-ctas">
+                <button onClick={handleAddToCart} className="btn btn-fill">Add to Cart — Rs {(product.price * quantity).toLocaleString()}</button>
+                <div 
+                  className="btn btn-outline" 
+                  style={{ cursor: 'pointer', color: isFavorited ? 'var(--rose-deep)' : 'var(--ink)' }}
                   onClick={() => setIsFavorited(!isFavorited)}
                 >
-                  <Heart
-                    className={`h-4 w-4 ${
-                      isFavorited ? "fill-red-500 text-red-500" : ""
-                    }`}
-                  />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="bg-background/80 cursor-pointer backdrop-blur-sm"
-                >
-                  <Share2 className="h-4 w-4" />
-                </Button>
+                  {isFavorited ? '♥ Saved' : '♡ Save'}
+                </div>
+              </div>
+
+              <div className="pd-feats">
+                <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> Applies in under 30 seconds, no dry time</div>
+                <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="M4 12a8 8 0 0 1 14-5M20 12a8 8 0 0 1-14 5M4 7v5h5M20 17v-5h-5"/></svg> Reusable for up to 10 wears with care</div>
+                <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="M3 7l9-4 9 4-9 4-9-4zM3 7v10l9 4 9-4V7"/></svg> Ships in 2–4 days across Pakistan</div>
               </div>
             </div>
-
-            {productImages.length > 1 && (
-              <div className="grid grid-cols-4 gap-2">
-                {productImages.map((image, index) => (
-                  <motion.button
-                    key={index}
-                    className={`aspect-square cursor-pointer overflow-hidden rounded-lg border-2 transition-colors ${
-                      selectedImageIndex === index
-                        ? "border-primary"
-                        : "border-border"
-                    }`}
-                    onClick={() => setSelectedImageIndex(index)}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <Image
-                      src={image}
-                      alt={`${product.title} ${index + 1}`}
-                      width={100}
-                      height={100}
-                      className="h-full w-full object-cover"
-                    />
-                  </motion.button>
-                ))}
-              </div>
-            )}
           </div>
 
-          {/* Product Information */}
-          <div className="space-y-6">
-            <div>
-              <motion.h1
-                className="text-foreground mb-2 text-3xl font-bold"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-              >
-                {product.title}
-              </motion.h1>
+          <div className="pd-tabs">
+            <div className={`pd-tab ${activeTab === 'desc' ? 'active' : ''}`} onClick={() => setActiveTab('desc')}>Description</div>
+            <div className={`pd-tab ${activeTab === 'apply' ? 'active' : ''}`} onClick={() => setActiveTab('apply')}>How to Apply</div>
+            <div className={`pd-tab ${activeTab === 'care' ? 'active' : ''}`} onClick={() => setActiveTab('care')}>Care &amp; Removal</div>
+            <div className={`pd-tab ${activeTab === 'reviews' ? 'active' : ''}`} onClick={() => setActiveTab('reviews')}>Reviews (128)</div>
+          </div>
 
-              {/* <motion.div
-                className="mb-4 flex items-center gap-4"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-              >
-                <RenderStars rating={product.rating || 0} size="sm" />
-              </motion.div> */}
-
-              <motion.div
-                className="mb-6 flex items-center gap-3"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-              >
-                <span className="text-foreground text-3xl font-bold">
-                  ${product.price.toFixed(2)}
-                </span>
-                {product.stock > 0 ? (
-                  <Badge
-                    variant="secondary"
-                    className="bg-green-100 text-green-800"
-                  >
-                    In Stock ({product.stock} available)
-                  </Badge>
-                ) : (
-                  <Badge variant="destructive">Out of Stock</Badge>
-                )}
-              </motion.div>
-            </div>
-
-            <motion.p
-              className="text-muted-foreground leading-relaxed"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-            >
-              {product.description}
-            </motion.p>
-
-            {/* Quantity and Add to Cart */}
-            <motion.div
-              className="space-y-4"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
-            >
-              <div>
-                <h3 className="mb-3 font-medium">Quantity</h3>
-                <div className="flex items-center gap-3">
-                  <div className="border-border flex items-center rounded-lg border">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={decrementQuantity}
-                      disabled={quantity <= 1}
-                      className="cursor-pointer"
-                    >
-                      <Minus className="h-4 w-4" />
-                    </Button>
-                    <span className="min-w-[60px] px-4 py-2 text-center">
-                      {quantity}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={incrementQuantity}
-                      disabled={quantity >= product.stock}
-                      className="cursor-pointer"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <span className="text-muted-foreground text-sm">
-                    {product.stock} items available
-                  </span>
-                </div>
-              </div>
-
-              <Button
-                size="lg"
-                className="w-full cursor-pointer"
-                disabled={!product.stock || product.stock === 0}
-                onClick={handleAddToCart}
-              >
-                {isAddedToCart ? (
-                  <>
-                    <Check className="mr-2 h-4 w-4" />
-                    Added to Cart!
-                  </>
-                ) : (
-                  <>
-                    <ShoppingCart className="mr-2 h-4 w-4" />
-                    Add to Cart - ${(product.price * quantity).toFixed(2)}
-                  </>
-                )}
-              </Button>
-            </motion.div>
-
-            {/* Shipping Info */}
-            <motion.div
-              className="border-border grid grid-cols-1 gap-4 border-t pt-6 sm:grid-cols-3"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6 }}
-            >
-              <div className="flex items-center gap-3">
-                <Truck className="text-primary h-5 w-5" />
-                <div>
-                  <p className="text-sm font-medium">Free Shipping</p>
-                  <p className="text-muted-foreground text-xs">
-                    Orders over $50
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Shield className="text-primary h-5 w-5" />
-                <div>
-                  <p className="text-sm font-medium">Secure Payment</p>
-                  <p className="text-muted-foreground text-xs">SSL encrypted</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <RotateCcw className="text-primary h-5 w-5" />
-                <div>
-                  <p className="text-sm font-medium">30-Day Returns</p>
-                  <p className="text-muted-foreground text-xs">
-                    No questions asked
-                  </p>
-                </div>
-              </div>
-            </motion.div>
+          <div className={`tab-panel ${activeTab === 'desc' ? 'active' : ''}`}>
+            <p>Each set includes 24 nails across 12 sizes, a nail file, a wooden cuticle stick, adhesive tabs and a mini prep pad. Hand-painted in small batches in our Rawalpindi studio, so shade and shimmer vary very slightly set to set — that&apos;s the handmade part.</p>
+          </div>
+          <div className={`tab-panel ${activeTab === 'apply' ? 'active' : ''}`}>
+            <ul className="list-disc pl-5 mt-2 space-y-2">
+              <li>Push back cuticles and lightly buff the natural nail.</li>
+              <li>Wipe with the included prep pad to remove oils.</li>
+              <li>Match nail sizes to each finger before applying.</li>
+              <li>Peel, press firmly along the adhesive tab for 20–30 seconds, done.</li>
+            </ul>
+          </div>
+          <div className={`tab-panel ${activeTab === 'care' ? 'active' : ''}`}>
+            <p>Avoid prolonged water exposure in the first two hours. To remove, soak in warm water for 10 minutes and gently lift from the cuticle edge — never pull. Store the set flat in its box to reuse.</p>
+          </div>
+          <div className={`tab-panel ${activeTab === 'reviews' ? 'active' : ''}`}>
+            <p>&quot;They looked salon-fresh for two full weeks — and I didn&apos;t touch a drop of acrylic.&quot; — Sana K.</p>
+            <p style={{ marginTop: '12px' }}>&quot;Fit was perfect straight out of the box, no filing needed.&quot; — Areeba T.</p>
           </div>
         </div>
+      </section>
 
-        {/* Product Details Tabs */}
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.7 }}
-        >
-          <Tabs defaultValue="description" className="mb-12">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="description">Description</TabsTrigger>
-              <TabsTrigger value="reviews">Reviews</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="description" className="mt-6">
-              <Card>
-                <CardContent className="p-6">
-                  <div className="prose prose-sm max-w-none">
-                    <p className="text-muted-foreground mb-4 leading-relaxed">
-                      {product.description}
-                    </p>
-                    {product.sku && (
-                      <div className="border-border mt-4 border-t pt-4">
-                        <p className="text-muted-foreground text-sm">
-                          <strong>SKU:</strong> {product.sku}
-                        </p>
+      <section className="collections" style={{ paddingTop: '40px' }}>
+        <div className="container">
+          <div className="sec-head reveal">
+            <span className="eyebrow">You May Also Like</span>
+            <h2>Complete the edit</h2>
+          </div>
+          <div className="prod-grid">
+            {relatedProducts.map((p, i) => {
+              const palettes = ["palette-gold", "palette-mauve", "palette-milk", ""];
+              const palette = palettes[i % palettes.length];
+              return (
+                <div className="prod-card reveal" key={p.product_id}>
+                  <Link href={`/products/${p.product_id}`} className="prod-info-link">
+                    <div className="prod-media">
+                      {p.image ? (
+                        <div className="w-full h-full relative">
+                          <img src={p.image} alt={p.title} className="w-full h-full object-cover" />
+                        </div>
+                      ) : (
+                        <div className={`fan-wrap ${palette}`}>
+                          <div className="nail nail1"></div>
+                          <div className="nail nail2"></div>
+                          <div className="nail nail3"></div>
+                          <div className="nail nail4"></div>
+                          <div className="nail nail5"></div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="prod-info">
+                      <div className="cat">Shape &middot; Length</div>
+                      <h4>{p.title}</h4>
+                      <div className="prod-bottom">
+                        <div className="price">Rs {p.price.toLocaleString()}</div>
+                        <button className="add-btn" onClick={(e) => { e.preventDefault(); addToCart(p); }}>+</button>
                       </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="reviews" className="mt-6">
-                <ReviewTab product={product} />
-            </TabsContent>
-          </Tabs>
-        </motion.div>
-      </div>
-    </div>
+                    </div>
+                  </Link>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </section>
+    </main>
   );
 }

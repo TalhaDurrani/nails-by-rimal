@@ -1,355 +1,215 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { LoadingSpinner } from '@/components/LoadingSpinner'
-import { toast } from 'sonner'
-import { createCODOrder } from './actions'
-import { useGuestCart } from '@/context/GuestCartContext'
-import { createServerSupabase } from '@/lib/supabase/server'
-
-const PAKISTANI_PROVINCES = [
-  'Punjab',
-  'Sindh',
-  'Khyber Pakhtunkhwa',
-  'Balochistan',
-  'Islamabad Capital Territory',
-  'Gilgit-Baltistan',
-  'Azad Kashmir',
-]
-
-interface CartItemWithDetails {
-  productVariantId: number
-  quantity: number
-  productTitle?: string
-  shapeName?: string
-  lengthName?: string
-  finishName?: string
-  price?: number
-}
+import { useCart } from "@/context/CartContext";
+import { useEffect, useState } from "react";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { processGuestCheckout } from "./actions";
 
 export default function CheckoutPage() {
-  const router = useRouter()
-  const { cartItems, isHydrated } = useGuestCart()
-  const [isLoading, setIsLoading] = useState(false)
-  const [cartDetails, setCartDetails] = useState<CartItemWithDetails[]>([])
-  const [subtotal, setSubtotal] = useState(0)
-  
-  // Form state
+  const router = useRouter();
+  const { cartItems, subtotal, clearCart } = useCart();
+  const [mounted, setMounted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [payMethod] = useState("COD");
+
   const [formData, setFormData] = useState({
-    customerName: '',
-    customerPhone: '',
-    customerEmail: '',
-    street: '',
-    city: '',
-    postalCode: '',
-    province: 'Punjab',
-  })
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    street: "",
+    city: "",
+    postalCode: "",
+    province: "Punjab",
+  });
 
-  // Load cart item details when cart items change
   useEffect(() => {
-    const loadCartDetails = async () => {
-      if (!isHydrated || cartItems.length === 0) {
-        setCartDetails([])
-        setSubtotal(0)
-        return
-      }
+    setMounted(true);
+  }, []);
 
-      try {
-        // Fetch variant details from Supabase
-        const variantIds = cartItems.map(item => item.productVariantId)
-        
-        const response = await fetch(
-          `/api/variants?ids=${variantIds.join(',')}`
-        )
-        const variants = await response.json()
+  useEffect(() => {
+    const revealEls = document.querySelectorAll('.reveal');
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if(entry.isIntersecting){
+          entry.target.classList.add('in');
+          io.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.15 });
 
-        // Map cart items with variant details
-        const details = cartItems.map(cartItem => {
-          const variant = variants.find(v => v.id === cartItem.productVariantId)
-          return {
-            ...cartItem,
-            productTitle: variant?.product?.title,
-            shapeName: variant?.shape?.name,
-            lengthName: variant?.length?.name,
-            finishName: variant?.finish?.name,
-            price: variant?.price_override || variant?.product?.base_price,
-          }
-        })
+    revealEls.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, [mounted]);
 
-        setCartDetails(details)
-
-        // Calculate subtotal
-        const total = details.reduce((sum, item) => sum + ((item.price || 0) * item.quantity), 0)
-        setSubtotal(total)
-      } catch (error) {
-        console.error('Failed to load cart details:', error)
-        toast.error('Failed to load cart details')
-      }
-    }
-
-    loadCartDetails()
-  }, [cartItems, isHydrated])
-
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
-  }
-
-  const handleProvinceChange = (value: string) => {
-    setFormData(prev => ({ ...prev, province: value }))
-  }
-
-  const shippingFee = 500
-  const total = subtotal + shippingFee
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
+    e.preventDefault();
+
     if (cartItems.length === 0) {
-      toast.error('Your cart is empty')
-      return
+      toast.error("Your cart is empty");
+      return;
     }
 
-    setIsLoading(true)
+    setIsLoading(true);
     try {
-      const result = await createCODOrder({
-        ...formData,
-        cartItems,
-      })
+      const orderData = {
+        name: `${formData.firstName} ${formData.lastName}`,
+        email: formData.email,
+        phone: formData.phone,
+        address: `${formData.street}, ${formData.city}, ${formData.province} ${formData.postalCode}`,
+        paymentMethod: payMethod
+      };
+
+      const result = await processGuestCheckout(orderData, cartItems, subtotal + 200);
 
       if (!result.success) {
-        toast.error(result.error || 'Failed to create order')
-        return
+        toast.error(result.error || "Failed to create order");
+        return;
       }
 
-      // Clear cart after successful order
-      // TODO: integrate with GuestCartContext.clearCart()
-
-      // Redirect to success page with order number
-      router.push(`/checkout/success?order_number=${result.orderNumber}`)
+      clearCart();
+      router.push(`/checkout/success?order_number=${result.trackingId}`);
     } catch (error) {
-      console.error('Checkout error:', error)
-      toast.error('An unexpected error occurred')
+      console.error("Checkout error:", error);
+      toast.error("An unexpected error occurred");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
-  if (!isHydrated) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 py-12">
-        <div className="mx-auto max-w-2xl px-4">
-          <Card>
-            <CardContent className="py-8">
-              <LoadingSpinner />
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    )
-  }
+  if (!mounted) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 py-12">
-      <div className="mx-auto max-w-2xl px-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl">Checkout - Cash on Delivery</CardTitle>
-            <p className="text-muted-foreground mt-2">
-              Please pay when your order arrives
-            </p>
-          </CardHeader>
-          <CardContent>
-            {cartItems.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground mb-4">Your cart is empty</p>
-                <Button onClick={() => router.push('/')}>
-                  Continue Shopping
-                </Button>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Customer Information */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Your Information</h3>
-                  
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="customerName">Full Name *</Label>
-                      <Input
-                        id="customerName"
-                        name="customerName"
-                        value={formData.customerName}
-                        onChange={handleInputChange}
-                        placeholder="e.g. Amina Ahmed"
-                        required
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="customerPhone">Phone Number *</Label>
-                      <Input
-                        id="customerPhone"
-                        name="customerPhone"
-                        type="tel"
-                        value={formData.customerPhone}
-                        onChange={handleInputChange}
-                        placeholder="e.g. 0300-1234567"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="customerEmail">Email (Optional)</Label>
-                    <Input
-                      id="customerEmail"
-                      name="customerEmail"
-                      type="email"
-                      value={formData.customerEmail}
-                      onChange={handleInputChange}
-                      placeholder="e.g. amina@example.com"
-                    />
-                  </div>
-                </div>
-
-                {/* Shipping Address */}
-                <div className="space-y-4 border-t pt-6">
-                  <h3 className="text-lg font-semibold">Shipping Address</h3>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="street">Street Address *</Label>
-                    <Input
-                      id="street"
-                      name="street"
-                      value={formData.street}
-                      onChange={handleInputChange}
-                      placeholder="e.g. 123 Mall Road"
-                      required
-                    />
-                  </div>
-
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="city">City *</Label>
-                      <Input
-                        id="city"
-                        name="city"
-                        value={formData.city}
-                        onChange={handleInputChange}
-                        placeholder="e.g. Lahore"
-                        required
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="postalCode">Postal Code *</Label>
-                      <Input
-                        id="postalCode"
-                        name="postalCode"
-                        value={formData.postalCode}
-                        onChange={handleInputChange}
-                        placeholder="e.g. 54000"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="province">Province *</Label>
-                    <Select value={formData.province} onValueChange={handleProvinceChange}>
-                      <SelectTrigger id="province">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PAKISTANI_PROVINCES.map(province => (
-                          <SelectItem key={province} value={province}>
-                            {province}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {/* Order Summary */}
-                <div className="space-y-4 border-t pt-6">
-                  <h3 className="text-lg font-semibold">Order Summary</h3>
-                  
-                  {/* Cart Items */}
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {cartDetails.map(item => (
-                      <div key={item.productVariantId} className="flex justify-between text-sm py-2 border-b">
-                        <div>
-                          <p className="font-medium">{item.productTitle}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {item.shapeName} • {item.lengthName} • {item.finishName}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-medium">Rs. {((item.price || 0) * item.quantity).toLocaleString()}</p>
-                          <p className="text-xs text-muted-foreground">×{item.quantity}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Totals */}
-                  <div className="space-y-2 text-sm border-t pt-4">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Subtotal:</span>
-                      <span>Rs. {subtotal.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Shipping:</span>
-                      <span>Rs. {shippingFee.toLocaleString()}</span>
-                    </div>
-                    <div className="border-t pt-2 flex justify-between font-semibold text-base">
-                      <span>Total:</span>
-                      <span>Rs. {total.toLocaleString()}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Submit Button */}
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={isLoading || cartItems.length === 0}
-                >
-                  {isLoading ? (
-                    <>
-                      <LoadingSpinner />
-                      <span className="ml-2">Processing...</span>
-                    </>
-                  ) : (
-                    `Place Order (COD) - Rs. ${total.toLocaleString()}`
-                  )}
-                </Button>
-
-                <p className="text-xs text-muted-foreground text-center">
-                  Your order will be confirmed via email. Payment is due upon delivery.
-                </p>
-              </form>
-            )}
-          </CardContent>
-        </Card>
+    <main className="w-full flex flex-col min-h-screen">
+      <div className="page-head" style={{ padding: '44px 0 26px' }}>
+        <div className="container">
+          <div className="checkout-steps">
+            <span>Cart</span> &rarr; <span className="on">Checkout</span> &rarr; <span>Confirmation</span>
+          </div>
+          <h1 style={{ fontSize: 'clamp(28px,3.4vw,38px)' }}>Checkout</h1>
+        </div>
       </div>
-    </div>
-  )
-}
 
+      <section style={{ paddingTop: '10px' }}>
+        <div className="container">
+          <form onSubmit={handleSubmit} className="checkout-layout">
+            
+            <div className="reveal in">
+              <div className="form-card">
+                <h3>Shipping Details</h3>
+                <div className="form-row">
+                  <div className="form-field">
+                    <label>First Name</label>
+                    <input type="text" name="firstName" value={formData.firstName} onChange={handleInputChange} placeholder="Rimal" required />
+                  </div>
+                  <div className="form-field">
+                    <label>Last Name</label>
+                    <input type="text" name="lastName" value={formData.lastName} onChange={handleInputChange} placeholder="Ahmed" required />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-field full">
+                    <label>Email</label>
+                    <input type="email" name="email" value={formData.email} onChange={handleInputChange} placeholder="you@email.com" required />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-field full">
+                    <label>Phone</label>
+                    <input type="tel" name="phone" value={formData.phone} onChange={handleInputChange} placeholder="03xx xxxxxxx" required />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-field full">
+                    <label>Street Address</label>
+                    <input type="text" name="street" value={formData.street} onChange={handleInputChange} placeholder="House no, street, area" required />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-field">
+                    <label>City</label>
+                    <input type="text" name="city" value={formData.city} onChange={handleInputChange} placeholder="Rawalpindi" required />
+                  </div>
+                  <div className="form-field">
+                    <label>Postal Code</label>
+                    <input type="text" name="postalCode" value={formData.postalCode} onChange={handleInputChange} placeholder="46000" />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-field full">
+                    <label>Province</label>
+                    <select name="province" value={formData.province} onChange={handleInputChange}>
+                      <option value="Punjab">Punjab</option>
+                      <option value="Sindh">Sindh</option>
+                      <option value="Khyber Pakhtunkhwa">Khyber Pakhtunkhwa</option>
+                      <option value="Balochistan">Balochistan</option>
+                      <option value="Islamabad Capital Territory">Islamabad Capital Territory</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="form-card">
+                <h3>Payment Method</h3>
+                <label className="pay-opt active">
+                  <input type="radio" name="pay" checked readOnly /> Cash on Delivery (COD)
+                </label>
+              </div>
+            </div>
+
+            <div className="summary-card reveal in">
+              <h3>Order Summary</h3>
+              
+              {cartItems.map((item) => (
+                <div className="mini-line" key={item.product_id}>
+                  <div className="cart-thumb">
+                    {item.image ? (
+                      <Image src={item.image} alt={item.title} width={54} height={54} className="w-full h-full object-cover rounded-[10px]" />
+                    ) : (
+                      <div className="fan-wrap" style={{ transform: 'scale(0.2)' }}><div className="nail nail1"></div><div className="nail nail2"></div><div className="nail nail3"></div><div className="nail nail4"></div><div className="nail nail5"></div></div>
+                    )}
+                  </div>
+                  <div>
+                    <h5>{item.title}</h5>
+                    <div className="meta">Qty {item.quantity} &middot; Almond, Medium</div>
+                  </div>
+                  <div className="price">Rs {(item.price * item.quantity).toLocaleString()}</div>
+                </div>
+              ))}
+
+              <div className="summary-row" style={{ marginTop: '20px' }}>
+                <span>Subtotal</span>
+                <span>Rs {subtotal.toLocaleString()}</span>
+              </div>
+              <div className="summary-row">
+                <span>Shipping</span>
+                <span>Rs 200</span>
+              </div>
+              <div className="summary-row total">
+                <span>Total</span>
+                <span>Rs {(subtotal + 200).toLocaleString()}</span>
+              </div>
+              
+              <button 
+                type="submit" 
+                className="btn btn-fill btn-block" 
+                style={{ marginTop: '22px' }}
+                disabled={isLoading}
+              >
+                {isLoading ? "Processing..." : "Place Order"}
+              </button>
+            </div>
+
+          </form>
+        </div>
+      </section>
+    </main>
+  );
+}

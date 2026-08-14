@@ -1,12 +1,10 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { Input } from '@/components/ui/input'
 import { ProductCard } from '@/components/ProductCard'
-import { useAuth } from '@/context/AuthContext'
 import { useProductsByCategory } from '@/hooks/queries'
-import { useRouter } from 'next/navigation'
 import { ErrorState } from '@/components/ErrorState'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 
@@ -19,8 +17,6 @@ export default function CategoryPage({
 	categoryName,
 	categoryId,
 }: CategoryPageProps) {
-	const { user } = useAuth()
-	const router = useRouter()
 	const [searchTerm, setSearchTerm] = useState('')
 
 	// Use TanStack Query hook instead of manual state management
