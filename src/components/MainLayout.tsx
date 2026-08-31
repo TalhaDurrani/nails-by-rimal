@@ -1,5 +1,3 @@
-"use client";
-
 interface MainLayoutProps {
   children: React.ReactNode;
 }

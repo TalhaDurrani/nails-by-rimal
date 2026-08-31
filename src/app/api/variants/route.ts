@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createServerSupabase } from '@/lib/supabase/server';
 
 // GET /api/variants?ids=1,2,3
 export async function GET(request: NextRequest) {
@@ -13,8 +13,10 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const ids = idsParam.split(',').map((id) => parseInt(id.trim(), 10));
-  const validIds = ids.filter((id) => !isNaN(id));
+  const ids = idsParam.split(',').map((id) => Number(id.trim()));
+  const validIds = Array.from(
+    new Set(ids.filter((id) => Number.isSafeInteger(id) && id > 0)),
+  );
 
   if (validIds.length === 0) {
     return NextResponse.json(
@@ -23,12 +25,16 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  try {
-    // Create server-side Supabase client
-    const supabase = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SECRET_KEY!
+  if (validIds.length > 50) {
+    return NextResponse.json(
+      { error: 'A maximum of 50 variant IDs may be requested' },
+      { status: 400 },
     );
+  }
+
+  try {
+    // The publishable client intentionally keeps product publication RLS active.
+    const supabase = await createServerSupabase();
 
     const { data, error } = await supabase
       .from('product_variants')
@@ -68,10 +74,15 @@ export async function GET(request: NextRequest) {
 
     // Format the response
     const variants = data.map((variant) => {
-      const shape = variant.shapes?.[0]?.name || 'Unknown';
-      const length = variant.lengths?.[0]?.name || 'Unknown';
-      const finish = variant.finishes?.[0]?.name || 'Unknown';
-      const product = variant.products?.[0];
+      const relation = <T,>(value: T | T[] | null): T | undefined =>
+        Array.isArray(value) ? value[0] : value ?? undefined;
+      const shapeRecord = relation(variant.shapes);
+      const lengthRecord = relation(variant.lengths);
+      const finishRecord = relation(variant.finishes);
+      const product = relation(variant.products);
+      const shape = shapeRecord?.name || 'Unknown';
+      const length = lengthRecord?.name || 'Unknown';
+      const finish = finishRecord?.name || 'Unknown';
 
       return {
         id: variant.id,
@@ -79,7 +90,7 @@ export async function GET(request: NextRequest) {
         shape,
         length,
         finish,
-        finishColor: variant.finishes?.[0]?.swatch_hex,
+        finishColor: finishRecord?.swatch_hex,
         stockQuantity: variant.stock_quantity,
         priceOverride: variant.price_override,
         basePrice: product?.base_price,

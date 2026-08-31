@@ -101,6 +101,21 @@ const handleProductError = (error: unknown): Error => {
   return new Error('Failed to fetch products');
 };
 
+const shouldRetryProductQuery = (failureCount: number, error: Error) => {
+  if (
+    error.name === 'AbortError' ||
+    error.name === 'TimeoutError' ||
+    error.message.includes(UNABLE_TO_REACH_DATABASE) ||
+    error.message.includes('404') ||
+    error.message.includes('permission') ||
+    error.message.includes('unauthorized') ||
+    error.message.includes('do not have permission')
+  ) {
+    return false;
+  }
+  return failureCount < 2;
+};
+
 // Get all products with improved caching and error handling
 export function useProducts(options?: UseQueryOptions<ProductType[]>) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -119,19 +134,7 @@ export function useProducts(options?: UseQueryOptions<ProductType[]>) {
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
-    retry: (failureCount, error) => {
-      if (
-        error instanceof Error &&
-        (error.message.includes(UNABLE_TO_REACH_DATABASE) ||
-          error.message.includes('404') ||
-          error.message.includes('permission') ||
-          error.message.includes('unauthorized') ||
-          error.message.includes('do not have permission'))
-      ) {
-        return false;
-      }
-      return failureCount < 2;
-    },
+    retry: shouldRetryProductQuery,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     throwOnError: false, // Don't throw errors, handle them in component
     ...options,
@@ -200,19 +203,7 @@ export function useProduct(
     },
     enabled: !!productId, // Only fetch when productId is provided
     staleTime: 5 * 60 * 1000, // 5 minutes
-    retry: (failureCount, error) => {
-      if (
-        error instanceof Error &&
-        (error.message.includes(UNABLE_TO_REACH_DATABASE) ||
-          error.message.includes('404') ||
-          error.message.includes('not found') ||
-          error.message.includes('permission') ||
-          error.message.includes('do not have permission'))
-      ) {
-        return false;
-      }
-      return failureCount < 2;
-    },
+    retry: shouldRetryProductQuery,
     throwOnError: false,
     ...options,
   });
@@ -231,19 +222,7 @@ export function useProductsByCategory(
     },
     enabled: !!categoryId && categoryId > 0, // Only fetch when valid categoryId
     staleTime: 5 * 60 * 1000, // 5 minutes
-    retry: (failureCount, error) => {
-      if (
-        error instanceof Error &&
-        (error.message.includes(UNABLE_TO_REACH_DATABASE) ||
-          error.message.includes('404') ||
-          error.message.includes('permission') ||
-          error.message.includes('unauthorized') ||
-          error.message.includes('do not have permission'))
-      ) {
-        return false;
-      }
-      return failureCount < 2;
-    },
+    retry: shouldRetryProductQuery,
     throwOnError: false,
     ...options,
   });
@@ -251,7 +230,8 @@ export function useProductsByCategory(
 
 // Enhanced hook for filtered products with TanStack Query
 export function useFilteredProducts(
-  initialFilters?: Partial<FilterOptions>
+  initialFilters?: Partial<FilterOptions>,
+  initialProducts?: ProductType[],
 ) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState<FilterOptions>({
@@ -270,21 +250,10 @@ export function useFilteredProducts(
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
-    retry: (failureCount, error) => {
-      if (
-        error instanceof Error &&
-        (error.message.includes(UNABLE_TO_REACH_DATABASE) ||
-          error.message.includes('404') ||
-          error.message.includes('permission') ||
-          error.message.includes('unauthorized') ||
-          error.message.includes('do not have permission'))
-      ) {
-        return false;
-      }
-      return failureCount < 2;
-    },
+    retry: shouldRetryProductQuery,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     throwOnError: false,
+    initialData: initialProducts,
   });
 
   const processedProducts = useMemo(() => {

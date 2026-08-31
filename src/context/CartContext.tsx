@@ -1,253 +1,292 @@
 'use client';
+
 import {
   createContext,
   useContext,
-  ReactNode,
-  useState,
   useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
 } from 'react';
-import { ProductType } from '../types';
-import * as cartService from '@/services/cart/cartService';
 import { toast } from 'sonner';
-import { useAuth } from './AuthContext';
+import type { ProductType, ProductVariantType, StoreBundle } from '@/types';
 
-// Define CartItem interface extending ProductType with quantity for UI consumption
-export interface CartItem extends ProductType {
+const GUEST_CART_KEY = 'nails-by-rimal-cart-v3';
+const LEGACY_GUEST_CART_KEY = 'nails-by-rimal-cart-v2';
+
+export interface CartItem {
+  line_id: string;
+  product_id: string;
+  product_variant_id: number;
+  title: string;
+  description: string;
+  image?: string;
+  price: number;
+  original_price: number;
+  stock: number;
   quantity: number;
-  cart_item_id?: number; // Database ID for the cart item
+  shape?: string;
+  length?: string;
+  finish?: string;
+  bundle_id?: string;
+  bundle_key?: string;
+  bundle_name?: string;
+  bundle_discount?: number;
 }
 
 interface CartContextType {
   cartItems: CartItem[];
-  addToCart: (product: ProductType) => void;
-  removeFromCart: (productId: string) => void;
-  updateQuantity: (productId: string, amount: number) => void;
-  clearCart: () => void;
+  addToCart: (
+    product: ProductType,
+    variant?: ProductVariantType,
+    quantity?: number,
+  ) => Promise<void>;
+  addBundleToCart: (
+    bundle: StoreBundle,
+    selections: ProductVariantType[],
+  ) => Promise<void>;
+  removeFromCart: (lineId: string | number) => Promise<void>;
+  updateQuantity: (lineId: string | number, amount: number) => Promise<void>;
+  clearCart: () => Promise<void>;
   totalItems: number;
   subtotal: number;
+  savings: number;
   isLoading: boolean;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
+function normalLineId(variantId: number) {
+  return `variant:${variantId}`;
+}
+
+function variantToCartItem(
+  product: ProductType,
+  variant: ProductVariantType,
+  quantity: number,
+): CartItem {
+  const price = Number(variant.price_override ?? product.price);
+  return {
+    line_id: normalLineId(variant.id),
+    product_id: product.product_id,
+    product_variant_id: variant.id,
+    title: product.title,
+    description: product.description,
+    image: product.image,
+    price,
+    original_price: price,
+    stock: variant.stock_quantity,
+    quantity,
+    shape: variant.shape?.name,
+    length: variant.length?.name,
+    finish: variant.finish?.name,
+  };
+}
+
+function isValidCartItem(item: unknown): item is CartItem {
+  if (!item || typeof item !== 'object') return false;
+  const line = item as Partial<CartItem>;
+  return (
+    typeof line.line_id === 'string' &&
+    typeof line.product_id === 'string' &&
+    Number.isInteger(line.product_variant_id) &&
+    Number.isInteger(line.quantity) &&
+    Number(line.quantity) > 0 &&
+    typeof line.price === 'number' &&
+    typeof line.original_price === 'number' &&
+    typeof line.stock === 'number'
+  );
+}
+
+function readGuestCart(): CartItem[] {
+  try {
+    const current = JSON.parse(localStorage.getItem(GUEST_CART_KEY) || '[]');
+    if (Array.isArray(current) && current.length) return current.filter(isValidCartItem);
+
+    const legacy = JSON.parse(localStorage.getItem(LEGACY_GUEST_CART_KEY) || '[]');
+    if (!Array.isArray(legacy)) return [];
+    const migrated = legacy.flatMap((value): CartItem[] => {
+      const item = value as Partial<CartItem>;
+      if (!Number.isInteger(item.product_variant_id) || !Number.isInteger(item.quantity)) return [];
+      const price = Number(item.price);
+      if (!Number.isFinite(price) || Number(item.quantity) < 1) return [];
+      return [{
+        ...item,
+        line_id: normalLineId(Number(item.product_variant_id)),
+        product_id: String(item.product_id || ''),
+        product_variant_id: Number(item.product_variant_id),
+        title: String(item.title || 'Product'),
+        description: String(item.description || ''),
+        price,
+        original_price: price,
+        stock: Number(item.stock || 0),
+        quantity: Number(item.quantity),
+      }];
+    });
+    localStorage.removeItem(LEGACY_GUEST_CART_KEY);
+    return migrated.filter(isValidCartItem);
+  } catch {
+    return [];
+  }
+}
+
 export function CartProvider({ children }: { children: ReactNode }) {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [subtotal, setSubtotal] = useState(0);
-  const [totalItems, setTotalItems] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeCartId, setActiveCartId] = useState<number | null>(null);
-  const { user } = useAuth();
 
-  // Load cart from database when user changes
   useEffect(() => {
-    async function loadCart() {
-      if (!user) {
-        // Clear cart if user is not logged in
-        setCartItems([]);
-        setSubtotal(0);
-        setTotalItems(0);
-        setActiveCartId(null);
-        setIsLoading(false);
-        return;
-      }
+    setCartItems(readGuestCart());
+    setIsLoading(false);
+  }, []);
 
-      setIsLoading(true);
-      try {
-        // Get or create active cart
-        const cart = await cartService.getOrCreateCart();
-        if (cart) {
-          setActiveCartId(cart.id);
-
-          // Get cart items
-          const items = await cartService.getCartItems(cart.id);
-
-          // Transform to CartItem format
-          const formattedItems: CartItem[] = items.map((item) => ({
-            ...item.product,
-            quantity: item.quantity,
-            cart_item_id: item.id,
-          }));
-
-          setCartItems(formattedItems);
-          setSubtotal(cart.total_price);
-          setTotalItems(cart.total_items);
-        }
-      } catch (error) {
-        console.error('Error loading cart:', error);
-        toast.error('Failed to load your cart');
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    loadCart();
-  }, [user]);
-
-  // Calculate totals when cartItems change
   useEffect(() => {
     if (!isLoading) {
-      const total = cartItems.reduce(
-        (acc, item) => acc + item.price * item.quantity,
-        0
-      );
-      setSubtotal(total);
-
-      const itemCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
-      setTotalItems(itemCount);
+      localStorage.setItem(GUEST_CART_KEY, JSON.stringify(cartItems));
     }
   }, [cartItems, isLoading]);
 
-  const addToCart = async (product: ProductType) => {
-    if (!user) {
-      toast.error('Please login to add items to cart');
+  const addToCart = async (
+    product: ProductType,
+    requestedVariant?: ProductVariantType,
+    quantity = 1,
+  ) => {
+    const variant =
+      requestedVariant ?? product.variants?.find((item) => item.stock_quantity > 0);
+    if (!variant || variant.stock_quantity < 1) {
+      toast.error('This product has no available variant.');
+      return;
+    }
+    if (!Number.isInteger(quantity) || quantity < 1) return;
+
+    const lineId = normalLineId(variant.id);
+    const currentQuantity =
+      cartItems.find((item) => item.line_id === lineId)?.quantity ?? 0;
+    if (currentQuantity + quantity > variant.stock_quantity) {
+      toast.error('The requested quantity is not available.');
       return;
     }
 
-    if (!activeCartId) {
-      const cart = await cartService.createCart();
-      if (!cart) {
-        toast.error('Failed to create cart');
-        return;
-      }
-      setActiveCartId(cart.id);
-    }
-
-    try {
-      // Add item to database
-      const result = await cartService.addItemToCart(
-        activeCartId as number,
-        product.product_id,
-        product.price,
-        1
-      );
-
-      if (result) {
-        // Find the item in current cart items
-        const existingItemIndex = cartItems.findIndex(
-          (item) => item.product_id === product.product_id
-        );
-
-        if (existingItemIndex !== -1) {
-          // Update existing item
-          const updatedItems = [...cartItems];
-          updatedItems[existingItemIndex] = {
-            ...updatedItems[existingItemIndex],
-            quantity: updatedItems[existingItemIndex].quantity + 1,
-            cart_item_id: result.id,
-          };
-          setCartItems(updatedItems);
-        } else {
-          // Add new item
-          setCartItems([
-            ...cartItems,
-            { ...product, quantity: 1, cart_item_id: result.id },
-          ]);
-        }
-
-        toast.success('Added to cart');
-      }
-    } catch (error) {
-      console.error('Error adding to cart:', error);
-      toast.error('Failed to add item to cart');
-    }
-  };
-
-  const removeFromCart = async (productId: string) => {
-    if (!activeCartId) return;
-
-    try {
-      // Find the cart item
-      const itemToRemove = cartItems.find(
-        (item) => item.product_id === productId
-      );
-
-      if (itemToRemove?.cart_item_id) {
-        // Remove from database
-        const success = await cartService.removeCartItem(
-          itemToRemove.cart_item_id
-        );
-
-        if (success) {
-          // Remove from local state
-          setCartItems((prev) =>
-            prev.filter((item) => item.product_id !== productId)
-          );
-          toast.success('Item removed from cart');
-        }
-      }
-    } catch (error) {
-      console.error('Error removing from cart:', error);
-      toast.error('Failed to remove item from cart');
-    }
-  };
-
-  const updateQuantity = async (productId: string, amount: number) => {
-    if (!activeCartId) return;
-
-    try {
-      // Find the item in cart
-      const itemToUpdate = cartItems.find(
-        (item) => item.product_id === productId
-      );
-
-      if (!itemToUpdate || !itemToUpdate.cart_item_id) return;
-
-      const newQuantity = itemToUpdate.quantity + amount;
-
-      if (newQuantity <= 0) {
-        // If new quantity is zero or less, remove the item
-        await removeFromCart(productId);
-        return;
-      }
-
-      // Update in database
-      const result = await cartService.updateCartItemQuantity(
-        itemToUpdate.cart_item_id,
-        newQuantity
-      );
-
-      if (result) {
-        // Update in local state
-        setCartItems((prev) =>
-          prev.map((item) =>
-            item.product_id === productId
-              ? { ...item, quantity: newQuantity }
-              : item
+    setCartItems((items) => {
+      const existing = items.find((item) => item.line_id === lineId);
+      return existing
+        ? items.map((item) =>
+            item.line_id === lineId
+              ? { ...item, quantity: item.quantity + quantity }
+              : item,
           )
-        );
-      }
-    } catch (error) {
-      console.error('Error updating quantity:', error);
-      toast.error('Failed to update quantity');
+        : [...items, variantToCartItem(product, variant, quantity)];
+    });
+    toast.success('Added to cart');
+  };
+
+  const addBundleToCart = async (
+    bundle: StoreBundle,
+    selections: ProductVariantType[],
+  ) => {
+    if (selections.length !== bundle.products.length) {
+      toast.error('Choose an available option for every product in the bundle.');
+      return;
     }
+    if (selections.some((variant) => variant.stock_quantity < 1)) {
+      toast.error('One of the selected bundle items is out of stock.');
+      return;
+    }
+
+    const bundleKey = crypto.randomUUID();
+    const multiplier = 1 - Number(bundle.discount_percentage) / 100;
+    const lines = bundle.products.map((product, index): CartItem => {
+      const variant = selections[index];
+      const originalPrice = Number(variant.price_override ?? product.price);
+      return {
+        ...variantToCartItem(product, variant, 1),
+        line_id: `bundle:${bundleKey}:${variant.id}`,
+        price: Number((originalPrice * multiplier).toFixed(2)),
+        original_price: originalPrice,
+        bundle_id: bundle.id,
+        bundle_key: bundleKey,
+        bundle_name: bundle.name,
+        bundle_discount: Number(bundle.discount_percentage),
+      };
+    });
+    setCartItems((items) => [...items, ...lines]);
+    toast.success(`${bundle.name} added to cart`);
+  };
+
+  const resolveLine = (items: CartItem[], id: string | number) =>
+    items.find(
+      (line) =>
+        line.line_id === String(id) ||
+        (!line.bundle_key && line.product_variant_id === Number(id)),
+    );
+
+  const removeFromCart = async (lineId: string | number) => {
+    setCartItems((items) => {
+      const item = resolveLine(items, lineId);
+      if (!item) return items;
+      return item.bundle_key
+        ? items.filter((line) => line.bundle_key !== item.bundle_key)
+        : items.filter((line) => line.line_id !== item.line_id);
+    });
+  };
+
+  const updateQuantity = async (lineId: string | number, amount: number) => {
+    setCartItems((items) => {
+      const item = resolveLine(items, lineId);
+      if (!item) return items;
+      const nextQuantity = item.quantity + amount;
+      if (nextQuantity <= 0) {
+        return item.bundle_key
+          ? items.filter((line) => line.bundle_key !== item.bundle_key)
+          : items.filter((line) => line.line_id !== item.line_id);
+      }
+
+      const affected = item.bundle_key
+        ? items.filter((line) => line.bundle_key === item.bundle_key)
+        : [item];
+      if (affected.some((line) => nextQuantity > line.stock)) {
+        toast.error('No more stock is available for this selection.');
+        return items;
+      }
+      return items.map((line) =>
+        line.line_id === item.line_id ||
+        (item.bundle_key && line.bundle_key === item.bundle_key)
+          ? { ...line, quantity: nextQuantity }
+          : line,
+      );
+    });
   };
 
   const clearCart = async () => {
-    if (!activeCartId) return;
-
-    try {
-      const success = await cartService.clearCart(activeCartId);
-
-      if (success) {
-        setCartItems([]);
-        toast.success('Cart cleared');
-      }
-    } catch (error) {
-      console.error('Error clearing cart:', error);
-      toast.error('Failed to clear cart');
-    }
+    setCartItems([]);
+    localStorage.removeItem(GUEST_CART_KEY);
+    localStorage.removeItem(LEGACY_GUEST_CART_KEY);
   };
+
+  const totals = useMemo(
+    () => ({
+      totalItems: cartItems.reduce((sum, item) => sum + item.quantity, 0),
+      subtotal: cartItems.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0,
+      ),
+      savings: cartItems.reduce(
+        (sum, item) => sum + (item.original_price - item.price) * item.quantity,
+        0,
+      ),
+    }),
+    [cartItems],
+  );
 
   return (
     <CartContext.Provider
       value={{
         cartItems,
         addToCart,
+        addBundleToCart,
         removeFromCart,
         updateQuantity,
         clearCart,
-        totalItems,
-        subtotal,
+        ...totals,
         isLoading,
       }}
     >
@@ -258,8 +297,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
 export function useCart() {
   const context = useContext(CartContext);
-  if (context === undefined) {
-    throw new Error('useCart must be used within a CartProvider');
-  }
+  if (!context) throw new Error('useCart must be used within a CartProvider');
   return context;
 }

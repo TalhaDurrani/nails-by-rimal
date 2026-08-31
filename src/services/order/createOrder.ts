@@ -1,60 +1,90 @@
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import 'server-only';
 
-// Generate a random 6-character alphanumeric string (e.g., NBR-A7B8C9)
-const generateTrackingId = () => {
-  const randomStr = Math.random().toString(36).substring(2, 8).toUpperCase();
-  return `NBR-${randomStr}`;
-};
+import { createAdminSupabase } from '@/lib/supabase/admin';
 
-export async function createOrderService(formData: any, cartItems: any[], cartTotal: number) {
-  // FIX: Add 'await' here because cookies() is async in newer Next.js versions
-  const cookieStore = await cookies(); 
-  
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } }
-  );
+export interface CheckoutCustomer {
+  name: string;
+  email: string;
+  phone: string;
+  street: string;
+  city: string;
+  postalCode: string;
+  province: string;
+}
 
-  const trackingId = generateTrackingId();
+export interface CheckoutItem {
+  variantId: number;
+  quantity: number;
+  bundleId?: string;
+  bundleKey?: string;
+}
 
-  // 1. Insert the Order
-  const { data: order, error: orderError } = await supabase
-    .from("orders")
-    .insert({
-      order_number: trackingId,
-      customer_name: formData.name,
-      customer_email: formData.email,
-      customer_phone: formData.phone,
-      address_street: formData.street,
-      address_city: formData.city,
-      address_postal_code: formData.zip,
-      address_province: formData.province,
-      total: cartTotal,
-      subtotal: cartTotal,
-      payment_method: "cod",
-      status: "pending",
-    })
-    .select()
-    .single();
+export interface CheckoutExtras {
+  boxOptionId?: string;
+  giftPackingId?: string;
+  giftMessage?: string;
+}
 
-  if (orderError) throw new Error("Failed to create order: " + orderError.message);
+export interface CreatedOrder {
+  orderId: number;
+  trackingId: string;
+  subtotal: number;
+  shippingFee: number;
+  total: number;
+}
 
-  // 2. Insert the Order Items
-  const orderItemsData = cartItems.map((item) => ({
-    order_id: order.id,
-    product_id: item.product_id,
-    product_variant_id: item.product_variant_id,
-    quantity: item.quantity,
-    price: item.price,
-  }));
+export async function createOrderService(
+  requestKey: string,
+  customer: CheckoutCustomer,
+  items: CheckoutItem[],
+  clientKey: string,
+  userId: string | null,
+  extras: CheckoutExtras,
+): Promise<CreatedOrder> {
+  const supabase = createAdminSupabase();
+  const { data, error } = await supabase.rpc('place_order', {
+    p_request_key: requestKey,
+    p_customer_name: customer.name,
+    p_customer_email: customer.email,
+    p_customer_phone: customer.phone,
+    p_address_street: customer.street,
+    p_address_city: customer.city,
+    p_address_postal_code: customer.postalCode,
+    p_address_province: customer.province,
+    p_items: items.map((item) => ({
+      variant_id: item.variantId,
+      quantity: item.quantity,
+      bundle_id: item.bundleId ?? null,
+      bundle_key: item.bundleKey ?? null,
+    })),
+    p_client_key: clientKey,
+    p_user_id: userId,
+    p_box_option_id: extras.boxOptionId ?? null,
+    p_gift_packing_id: extras.giftPackingId ?? null,
+    p_gift_message: extras.giftMessage?.trim() || null,
+  });
 
-  const { error: itemsError } = await supabase
-    .from("order_items")
-    .insert(orderItemsData);
+  if (error) {
+    console.error('Atomic order creation failed:', error);
+    if (/stock|unavailable/i.test(error.message)) {
+      throw new Error('One or more items are no longer available in that quantity.');
+    }
+    if (/too many/i.test(error.message)) {
+      throw new Error('Please wait a few minutes before placing another order.');
+    }
+    throw new Error('We could not place your order. Please try again.');
+  }
 
-  if (itemsError) throw new Error("Failed to save order items: " + itemsError.message);
+  const result = data as Record<string, unknown> | null;
+  if (!result?.tracking_id || !result.order_id) {
+    throw new Error('The order service returned an invalid response.');
+  }
 
-  return { trackingId, order };
+  return {
+    orderId: Number(result.order_id),
+    trackingId: String(result.tracking_id),
+    subtotal: Number(result.subtotal ?? 0),
+    shippingFee: Number(result.shipping_fee ?? 0),
+    total: Number(result.total ?? 0),
+  };
 }

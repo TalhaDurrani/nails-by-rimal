@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Search, Filter } from "lucide-react";
-import { UserFilters } from "@/services/admin/adminUserService";
+import type { UserFilters } from "@/services/admin/adminUserService";
 
 interface AdminUsersClientProps {
   currentFilters: UserFilters;

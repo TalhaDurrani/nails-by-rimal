@@ -6,9 +6,9 @@ import Image from "next/image";
 export function Footer() {
   return (
     <footer className="bg-[#FBF6F2] pt-[70px] pb-[30px] border-t border-[#EFCFC9]">
-      <div className="max-w-[1220px] mx-auto px-6 md:px-10">
+      <div className="container mx-auto px-4 sm:px-6 md:px-8 lg:px-10">
         {/* Foot Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-10 pb-[50px]">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-10 pb-[50px]">
           {/* Brand Info */}
           <div className="flex gap-[14px] items-start">
             <Image
@@ -39,17 +39,7 @@ export function Footer() {
               </li>
               <li>
                 <Link href="/#bestsellers" className="text-[13.5px] text-[#7A6C68] transition-colors duration-300 hover:text-[#BE7681]">
-                  Bestsellers
-                </Link>
-              </li>
-              <li>
-                <Link href="/products?filter=new" className="text-[13.5px] text-[#7A6C68] transition-colors duration-300 hover:text-[#BE7681]">
-                  New Arrivals
-                </Link>
-              </li>
-              <li>
-                <Link href="/contact" className="text-[13.5px] text-[#7A6C68] transition-colors duration-300 hover:text-[#BE7681]">
-                  Gift Cards
+                  Featured Sets
                 </Link>
               </li>
             </ul>
@@ -60,18 +50,8 @@ export function Footer() {
             <h5 className="text-[11.5px] tracking-[0.18em] uppercase text-[#B48A4E] mb-5 font-semibold">Support</h5>
             <ul className="space-y-3">
               <li>
-                <Link href="/contact#sizing" className="text-[13.5px] text-[#7A6C68] transition-colors duration-300 hover:text-[#BE7681]">
-                  Sizing Guide
-                </Link>
-              </li>
-              <li>
-                <Link href="/contact#application" className="text-[13.5px] text-[#7A6C68] transition-colors duration-300 hover:text-[#BE7681]">
-                  Application Guide
-                </Link>
-              </li>
-              <li>
-                <Link href="/contact#shipping" className="text-[13.5px] text-[#7A6C68] transition-colors duration-300 hover:text-[#BE7681]">
-                  Shipping Info
+                <Link href="/trackOrder" className="text-[13.5px] text-[#7A6C68] transition-colors duration-300 hover:text-[#BE7681]">
+                  Track Order
                 </Link>
               </li>
               <li>
@@ -92,12 +72,7 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/#reviews" className="text-[13.5px] text-[#7A6C68] transition-colors duration-300 hover:text-[#BE7681]">
-                  Reviews
-                </Link>
-              </li>
-              <li>
-                <Link href="/contact#wholesale" className="text-[13.5px] text-[#7A6C68] transition-colors duration-300 hover:text-[#BE7681]">
+                <Link href="/contact" className="text-[13.5px] text-[#7A6C68] transition-colors duration-300 hover:text-[#BE7681]">
                   Wholesale
                 </Link>
               </li>
@@ -111,32 +86,6 @@ export function Footer() {
         {/* Foot Bottom */}
         <div className="flex flex-col sm:flex-row items-center justify-between pt-7 mt-[28px] text-[12px] text-[#7A6C68] gap-4">
           <div>&copy; {new Date().getFullYear()} Nails by Rimal. All rights reserved.</div>
-          <div className="flex gap-4">
-            <a
-              href="https://instagram.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-[34px] h-[34px] rounded-full border border-[#B48A4E] flex items-center justify-center text-[13px] text-[#B48A4E] transition-all duration-300 hover:bg-[#B48A4E] hover:text-white"
-            >
-              IG
-            </a>
-            <a
-              href="https://tiktok.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-[34px] h-[34px] rounded-full border border-[#B48A4E] flex items-center justify-center text-[13px] text-[#B48A4E] transition-all duration-300 hover:bg-[#B48A4E] hover:text-white"
-            >
-              TT
-            </a>
-            <a
-              href="https://whatsapp.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-[34px] h-[34px] rounded-full border border-[#B48A4E] flex items-center justify-center text-[13px] text-[#B48A4E] transition-all duration-300 hover:bg-[#B48A4E] hover:text-white"
-            >
-              WA
-            </a>
-          </div>
         </div>
       </div>
     </footer>

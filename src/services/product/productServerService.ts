@@ -1,13 +1,15 @@
-import { createServerSupabase } from '@/lib/supabase/server';
+import { createPublicSupabase } from '@/lib/supabase/public';
 import { ProductType } from '@/types';
+import { mapProductRecord, PRODUCT_SELECT } from './productMapper';
 
 export const productServerService = {
   async getProducts(): Promise<ProductType[]> {
     try {
-      const supabase = await createServerSupabase();
+      const supabase = createPublicSupabase();
       const { data, error } = await supabase
         .from('products')
-        .select('*, category:categories(*)')
+        .select(PRODUCT_SELECT)
+        .eq('is_published', true)
         .order('title');
 
       if (error) {
@@ -15,7 +17,7 @@ export const productServerService = {
         return [];
       }
 
-      return data as ProductType[];
+      return (data || []).map(mapProductRecord);
     } catch (error) {
       console.error('Error in getProducts:', error);
       return [];
@@ -24,11 +26,12 @@ export const productServerService = {
 
   async getProductById(id: string): Promise<ProductType | null> {
     try {
-      const supabase = await createServerSupabase();
+      const supabase = createPublicSupabase();
       const { data, error } = await supabase
         .from('products')
-        .select('*, category:categories(*)')
+        .select(PRODUCT_SELECT)
         .eq('product_id', id)
+        .eq('is_published', true)
         .single();
 
       if (error) {
@@ -36,7 +39,7 @@ export const productServerService = {
         return null;
       }
 
-      return data as ProductType;
+      return mapProductRecord(data);
     } catch (error) {
       console.error('Error in getProductById:', error);
       return null;
@@ -45,11 +48,12 @@ export const productServerService = {
 
   async getProductsByCategory(categoryId: number): Promise<ProductType[]> {
     try {
-      const supabase = await createServerSupabase();
+      const supabase = createPublicSupabase();
       const { data, error } = await supabase
         .from('products')
-        .select('*, category:categories(*)')
+        .select(PRODUCT_SELECT)
         .eq('category_id', categoryId)
+        .eq('is_published', true)
         .order('title');
 
       if (error) {
@@ -57,7 +61,7 @@ export const productServerService = {
         return [];
       }
 
-      return data as ProductType[];
+      return (data || []).map(mapProductRecord);
     } catch (error) {
       console.error('Error in getProductsByCategory:', error);
       return [];
@@ -66,11 +70,12 @@ export const productServerService = {
 
   async searchProducts(query: string): Promise<ProductType[]> {
     try {
-      const supabase = await createServerSupabase();
+      const supabase = createPublicSupabase();
       const { data, error } = await supabase
         .from('products')
-        .select('*, category:categories(*)')
+        .select(PRODUCT_SELECT)
         .ilike('title', `%${query}%`)
+        .eq('is_published', true)
         .order('title');
 
       if (error) {
@@ -78,7 +83,7 @@ export const productServerService = {
         return [];
       }
 
-      return data as ProductType[];
+      return (data || []).map(mapProductRecord);
     } catch (error) {
       console.error('Error in searchProducts:', error);
       return [];

@@ -9,6 +9,7 @@ import { Suspense } from "react";
 function SuccessContent() {
   const searchParams = useSearchParams();
   const trackingId = searchParams.get("trackingId") || searchParams.get("order_number");
+  const emailSent = searchParams.get("email_sent") === "1";
 
   return (
     <div className="max-w-md w-full text-center space-y-6 p-8 bg-white rounded-2xl shadow-sm border border-gray-100">
@@ -29,7 +30,9 @@ function SuccessContent() {
       )}
 
       <p className="text-sm text-gray-500 mt-4">
-        We have sent an order confirmation to your email. You can use your Tracking ID to check the status of your order at any time.
+        {emailSent
+          ? "We sent the order confirmation and Tracking ID to your email."
+          : "Save this Tracking ID. You can use it with your checkout email to check the order status at any time."}
       </p>
 
       <div className="pt-6 flex flex-col space-y-3">

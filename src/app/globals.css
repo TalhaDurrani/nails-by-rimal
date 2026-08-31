@@ -1,41 +1,54 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-@layer base {
-  :root {
-    /* Custom Brand Colors from Design */
-    --cream: #FCF1ED;
-    --cream-2: #FBF6F2;
-    --blush: #F4DAD3;
-    --blush-2: #EFCFC9;
-    --rose: #D89AA0;
-    --rose-deep: #BE7681;
-    --gold: #B48A4E;
-    --gold-light: #E8CE9C;
-    --gold-line: linear-gradient(90deg, transparent, #C7A25F, transparent);
-    --ink: #2E2624;
-    --ink-soft: #7A6C68;
-    --white: #FFFDFB;
-    --shadow: 0 20px 60px -20px rgba(46,38,36,0.25);
+@theme {
+  /* Custom Brand Colors for Tailwind v4 */
+  --color-cream: #FCF1ED;
+  --color-cream-2: #FBF6F2;
+  --color-blush: #F4DAD3;
+  --color-blush-2: #EFCFC9;
+  --color-rose: #D89AA0;
+  --color-rose-deep: #BE7681;
+  --color-gold: #B48A4E;
+  --color-gold-light: #E8CE9C;
+  --color-ink: #2E2624;
+  --color-ink-soft: #7A6C68;
+  --color-white: #FFFDFB;
+}
 
-    /* Shadcn UI Variables (HSL format mapped to design colors) */
-    --background: 13 47% 96%; /* #FCF1ED */
-    --foreground: 9 12% 16%; /* #2E2624 */
-    
-    --primary: 352 35% 60%; /* #BE7681 */
-    --primary-foreground: 12 30% 98%; /* #FFFDFB */
-    
-    --secondary: 12 47% 89%; /* #F4DAD3 */
-    --secondary-foreground: 9 12% 16%;
+/* CSS Variables for backward compatibility with existing custom CSS */
+:root {
+  --font-body: "Segoe UI", Arial, sans-serif;
+  --font-head: Georgia, "Times New Roman", serif;
+  --cream: #FCF1ED;
+  --cream-2: #FBF6F2;
+  --blush: #F4DAD3;
+  --blush-2: #EFCFC9;
+  --rose: #D89AA0;
+  --rose-deep: #BE7681;
+  --gold: #B48A4E;
+  --gold-light: #E8CE9C;
+  --gold-line: linear-gradient(90deg, transparent, #C7A25F, transparent);
+  --ink: #2E2624;
+  --ink-soft: #7A6C68;
+  --white: #FFFDFB;
+  --shadow: 0 20px 60px -20px rgba(46,38,36,0.25);
 
-    --border: 36 40% 51%; /* #B48A4E */
-    --input: 36 40% 51%;
-    --ring: 352 35% 60%;
-    
-    --radius: 999px; /* Pill buttons default */
-    --transition: all 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
-  }
+  /* Shadcn UI Variables (HSL format mapped to design colors) */
+  --background: 13 47% 96%; /* #FCF1ED */
+  --foreground: 9 12% 16%; /* #2E2624 */
+
+  --primary: 352 35% 60%; /* #BE7681 */
+  --primary-foreground: 12 30% 98%; /* #FFFDFB */
+
+  --secondary: 12 47% 89%; /* #F4DAD3 */
+  --secondary-foreground: 9 12% 16%;
+
+  --border: 36 40% 51%; /* #B48A4E */
+  --input: 36 40% 51%;
+  --ring: 352 35% 60%;
+
+  --radius: 999px; /* Pill buttons default */
+  --transition: all 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 /* ===========================================================
@@ -52,6 +65,25 @@ body {
   font-weight: 300;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
+}
+
+.container {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+@media (min-width: 768px) {
+  .container {
+    padding: 0 32px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container {
+    padding: 0 48px;
+  }
 }
 
 h1, h2, h3, .script {
@@ -74,24 +106,6 @@ h1, h2, h3, .script {
   width: 100%;
   height: 1px;
   background: var(--gold-line);
-}
-
-.btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 15px 34px;
-  font-family: var(--font-body), 'Jost', sans-serif;
-  font-size: 12.5px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  font-weight: 500;
-  border-radius: 999px;
-  cursor: pointer;
-  transition: all 0.45s cubic-bezier(.2, .8, .2, 1);
-  border: 1px solid transparent;
-  white-space: nowrap;
-  text-decoration: none !important;
 }
 
 .btn-fill {
@@ -411,11 +425,7 @@ section.why, section.collections, section.testimonial, section.bestsellers, sect
 }
 
 /* ============ PRODUCT GRID / CARD (shared: home + shop) ============ */
-.prod-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 26px;
-}
+/* Grid layouts now handled by Tailwind utilities in components */
 
 .prod-card {
   background: var(--white);
@@ -563,11 +573,7 @@ section.why, section.collections, section.testimonial, section.bestsellers, sect
   color: var(--cream);
 }
 
-.why-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 36px;
-}
+/* Grid layouts now handled by Tailwind utilities in components */
 
 .why-item {
   text-align: center;
@@ -654,11 +660,7 @@ section.why, section.collections, section.testimonial, section.bestsellers, sect
 }
 
 /* ============ GALLERY ============ */
-.gallery-strip {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 20px;
-}
+/* Grid layouts now handled by Tailwind utilities in components */
 
 .gal-item {
   aspect-ratio: 1/1.1;
@@ -747,12 +749,7 @@ footer {
   padding: 70px 0 30px;
 }
 
-.foot-grid {
-  display: grid;
-  grid-template-columns: 1.4fr 1fr 1fr 1fr;
-  gap: 40px;
-  padding-bottom: 50px;
-}
+/* Grid layouts now handled by Tailwind utilities in components */
 
 .foot-brand {
   display: flex;
@@ -852,16 +849,9 @@ textarea:focus-visible {
 /* ===========================================================
    SHOP PAGE
    =========================================================== */
-.shop-layout {
-  display: grid;
-  grid-template-columns: 260px 1fr;
-  gap: 50px;
-  align-items: flex-start;
-}
+/* Grid layouts now handled by Tailwind utilities in components */
 
 .filters {
-  position: sticky;
-  top: 110px;
   background: var(--white);
   border-radius: 20px;
   padding: 30px 26px;
@@ -935,11 +925,7 @@ textarea:focus-visible {
   color: var(--ink);
 }
 
-.shop-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 26px;
-}
+/* Grid layouts now handled by Tailwind utilities in components */
 
 .pagination {
   display: flex;
@@ -974,12 +960,7 @@ textarea:focus-visible {
 /* ===========================================================
    PRODUCT DETAIL PAGE
    =========================================================== */
-.product-layout {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 70px;
-  align-items: flex-start;
-}
+/* Grid layouts now handled by Tailwind utilities in components */
 
 .pd-gallery-main {
   height: 480px;
@@ -1233,12 +1214,7 @@ textarea:focus-visible {
 /* ===========================================================
    CART PAGE
    =========================================================== */
-.cart-layout {
-  display: grid;
-  grid-template-columns: 1.6fr 1fr;
-  gap: 50px;
-  align-items: flex-start;
-}
+/* Grid layouts now handled by Tailwind utilities in components */
 
 .cart-table {
   width: 100%;
@@ -1309,8 +1285,6 @@ textarea:focus-visible {
   border-radius: 22px;
   padding: 34px 30px;
   box-shadow: var(--shadow);
-  position: sticky;
-  top: 110px;
 }
 
 .summary-card h3 {
@@ -1391,12 +1365,7 @@ textarea:focus-visible {
   color: var(--rose-deep);
 }
 
-.checkout-layout {
-  display: grid;
-  grid-template-columns: 1.5fr 1fr;
-  gap: 50px;
-  align-items: flex-start;
-}
+/* Grid layouts now handled by Tailwind utilities in components */
 
 .form-card {
   background: var(--white);
@@ -1439,7 +1408,8 @@ textarea:focus-visible {
 }
 
 .form-field input,
-.form-field select {
+.form-field select,
+.form-field textarea {
   border: 1px solid var(--blush-2);
   border-radius: 12px;
   padding: 12px 15px;
@@ -1451,7 +1421,8 @@ textarea:focus-visible {
 }
 
 .form-field input:focus,
-.form-field select:focus {
+.form-field select:focus,
+.form-field textarea:focus {
   border-color: var(--gold);
 }
 
@@ -1507,12 +1478,7 @@ textarea:focus-visible {
 /* ===========================================================
    ABOUT PAGE
    =========================================================== */
-.about-hero {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 60px;
-  align-items: center;
-}
+/* Grid layouts now handled by Tailwind utilities in components */
 
 .about-visual {
   position: relative;
@@ -1558,11 +1524,7 @@ textarea:focus-visible {
   line-height: 1.7;
 }
 
-.values-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 30px;
-}
+/* Grid layouts now handled by Tailwind utilities in components */
 
 .value-card {
   background: var(--white);
@@ -1577,12 +1539,7 @@ textarea:focus-visible {
   border-color: var(--gold);
 }
 
-.team-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 30px;
-  text-align: center;
-}
+/* Grid layouts now handled by Tailwind utilities in components */
 
 .team-avatar {
   width: 120px;
@@ -1614,12 +1571,7 @@ textarea:focus-visible {
 /* ===========================================================
    CONTACT PAGE
    =========================================================== */
-.contact-layout {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 60px;
-  align-items: flex-start;
-}
+/* Grid layouts now handled by Tailwind utilities in components */
 
 .contact-info-card {
   display: flex;
@@ -1716,123 +1668,74 @@ textarea:focus-visible {
 /* ===========================================================
    RESPONSIVE
    =========================================================== */
-@media (max-width: 1024px) {
-  .hero-grid {
-    grid-template-columns: 1fr;
-  }
-  .hero-visual {
-    height: 420px;
-    order: -1;
-  }
-  .prod-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .why-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 40px 20px;
-  }
-  .foot-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-  .gallery-strip {
-    grid-template-columns: repeat(3, 1fr);
-  }
-  .shop-layout {
-    grid-template-columns: 1fr;
-  }
-  .filters {
-    position: static;
-  }
-  .shop-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .product-layout {
-    grid-template-columns: 1fr;
-    gap: 40px;
-  }
-  .cart-layout {
-    grid-template-columns: 1fr;
-  }
-  .summary-card {
-    position: static;
-  }
-  .checkout-layout {
-    grid-template-columns: 1fr;
-  }
-  .about-hero {
-    grid-template-columns: 1fr;
-  }
-  .values-grid,
-  .team-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-  .contact-layout {
-    grid-template-columns: 1fr;
-  }
+.contact-layout {
+  display: grid;
+  grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr);
+  gap: 56px;
+  align-items: start;
 }
 
-@media (max-width: 720px) {
-  .burger {
-    display: block;
+.faq-q > span:first-child {
+  min-width: 0;
+  padding-right: 14px;
+}
+
+.faq-q .plus {
+  flex: none;
+}
+
+.form-field,
+.form-row,
+.form-card,
+.summary-card {
+  min-width: 0;
+}
+
+.form-field input,
+.form-field select,
+.form-field textarea {
+  width: 100%;
+  max-width: 100%;
+}
+
+@media (max-width: 767px) {
+  .contact-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 32px;
   }
-  .nav-wrap {
-    padding: 14px 22px;
+
+  .form-card,
+  .summary-card {
+    border-radius: 18px;
+    padding: 24px 18px;
   }
-  .container {
-    padding: 0 22px;
+
+  .form-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
   }
-  section.why, section.collections, section.testimonial, section.bestsellers, section.worn-by-you {
-    padding: 70px 0;
-  }
+
   .hero {
-    padding: 36px 0 20px;
+    padding-top: 42px;
   }
-  .hero-ctas {
-    flex-direction: column;
-    align-items: flex-start;
+
+  .hero-copy h1 {
+    font-size: clamp(38px, 12vw, 52px);
   }
-  .prod-grid {
-    grid-template-columns: 1fr 1fr;
+
+  .hero-copy p {
+    font-size: 15px;
+  }
+
+  .hero-ctas .btn {
+    width: 100%;
+    text-align: center;
+  }
+
+  .hero-feats {
     gap: 16px;
   }
-  .why-grid {
-    grid-template-columns: 1fr;
-  }
-  .foot-grid {
-    grid-template-columns: 1fr;
-    gap: 34px;
-  }
-  .gallery-strip {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-  }
-  .newsletter {
-    padding: 70px 20px;
-  }
-  .nl-form {
-    flex-direction: column;
-    border-radius: 22px;
-    gap: 8px;
-  }
-  .nl-form button {
-    border-radius: 16px;
-  }
-  .shop-grid {
-    grid-template-columns: 1fr;
-  }
-  .form-row {
-    grid-template-columns: 1fr;
-  }
-  .values-grid,
-  .team-grid {
-    grid-template-columns: 1fr;
-  }
-  .pd-ctas {
-    flex-direction: column;
-  }
-  .cart-table thead {
-    display: none;
-  }
+
   .cart-table,
   .cart-table tbody,
   .cart-table tr,
@@ -1840,8 +1743,54 @@ textarea:focus-visible {
     display: block;
     width: 100%;
   }
+
+  .cart-table thead {
+    display: none;
+  }
+
   .cart-table tr {
-    padding: 14px 0;
+    margin-bottom: 18px;
+    border: 1px solid var(--blush-2);
+    border-radius: 18px;
+    background: var(--white);
+    padding: 16px;
+  }
+
+  .cart-table td {
+    border: 0;
+    padding: 7px 0;
+  }
+
+  .cart-table td:last-child {
+    border-top: 1px solid var(--blush-2);
+    margin-top: 6px;
+    padding-top: 12px;
+    text-align: right;
+  }
+
+  .mini-line {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .mini-line .price {
+    width: 100%;
+    margin-left: 68px;
+  }
+
+  .checkout-steps {
+    gap: 7px;
+    font-size: 10px;
+  }
+
+  .shop-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .shop-toolbar select {
+    width: 100%;
   }
 }
 
@@ -1866,14 +1815,7 @@ textarea:focus-visible {
   z-index: 0;
 }
 
-.hero-grid {
-  position: relative;
-  z-index: 2;
-  display: grid;
-  grid-template-columns: 1.02fr 0.98fr;
-  gap: 40px;
-  align-items: center;
-}
+/* Grid layouts now handled by Tailwind utilities in components */
 
 .hero-copy h1 {
   font-size: clamp(40px, 5vw, 66px);
@@ -1936,11 +1878,7 @@ textarea:focus-visible {
   background: var(--cream-2);
 }
 
-.col-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 32px;
-}
+/* Grid layouts now handled by Tailwind utilities in components */
 
 .col-card {
   position: relative;

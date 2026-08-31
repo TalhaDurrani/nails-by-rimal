@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 
 export default function CartShoppingPage() {
-  const { cartItems, removeFromCart, updateQuantity, subtotal } = useCart();
+  const { cartItems, removeFromCart, updateQuantity, subtotal, savings } = useCart();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -50,15 +50,15 @@ export default function CartShoppingPage() {
               <Link href="/products" className="btn btn-fill">Start Shopping</Link>
             </div>
           ) : (
-            <div className="cart-layout">
+            <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-8 lg:gap-12 items-start">
               <div className="reveal in">
                 <table className="cart-table">
                   <thead>
                     <tr><th>Item</th><th>Options</th><th>Quantity</th><th>Total</th></tr>
                   </thead>
                   <tbody>
-                    {cartItems.map((item) => (
-                      <tr key={item.product_id}>
+                    {cartItems.map((item, index) => (
+                      <tr key={item.line_id}>
                         <td>
                           <div className="cart-item">
                             <div className="cart-thumb">
@@ -70,19 +70,34 @@ export default function CartShoppingPage() {
                             </div>
                             <div>
                               <h4>{item.title}</h4>
+                              {item.bundle_name && (
+                                <div className="mt-1 text-xs font-semibold text-[#BE7681]">
+                                  {index === cartItems.findIndex((line) => line.bundle_key === item.bundle_key)
+                                    ? `${item.bundle_name} · ${item.bundle_discount}% off`
+                                    : "Bundle item"}
+                                </div>
+                              )}
                               <div className="meta">Rs {item.price.toLocaleString()}</div>
-                              <span className="cart-remove" onClick={() => removeFromCart(item.product_id)}>Remove</span>
+                              <button
+                                type="button"
+                                className="cart-remove"
+                                onClick={() => void removeFromCart(item.line_id)}
+                              >
+                                {item.bundle_key ? "Remove bundle" : "Remove"}
+                              </button>
                             </div>
                           </div>
                         </td>
                         <td className="meta" style={{ color: 'var(--ink-soft)', fontSize: '13px' }}>
-                          Almond &middot; Medium {/* Mock options for now */}
+                          {[item.shape, item.length, item.finish]
+                            .filter(Boolean)
+                            .join(" · ")}
                         </td>
                         <td>
                           <div className="qty-box">
-                            <button onClick={() => updateQuantity(item.product_id, -1)}>&minus;</button>
+                            <button onClick={() => void updateQuantity(item.line_id, -1)}>&minus;</button>
                             <span>{item.quantity}</span>
-                            <button onClick={() => updateQuantity(item.product_id, 1)}>+</button>
+                            <button onClick={() => void updateQuantity(item.line_id, 1)}>+</button>
                           </div>
                         </td>
                         <td style={{ fontWeight: 500 }}>Rs {(item.price * item.quantity).toLocaleString()}</td>
@@ -96,16 +111,16 @@ export default function CartShoppingPage() {
                 </div>
               </div>
 
-              <div className="summary-card reveal in">
+              <div className="summary-card reveal in lg:sticky lg:top-[110px]">
                 <h3>Order Summary</h3>
                 <div className="summary-row"><span>Subtotal</span><span>Rs {subtotal.toLocaleString()}</span></div>
+                {savings > 0 && (
+                  <div className="summary-row text-emerald-700">
+                    <span>Bundle savings</span><span>− Rs {savings.toLocaleString()}</span>
+                  </div>
+                )}
                 <div className="summary-row"><span>Shipping</span><span>Rs 200</span></div>
                 <div className="summary-row"><span>Estimated tax</span><span>Rs 0</span></div>
-                
-                <div className="promo-row">
-                  <input type="text" placeholder="Promo code" />
-                  <button type="button">Apply</button>
-                </div>
                 
                 <div className="summary-row total">
                   <span>Total</span>

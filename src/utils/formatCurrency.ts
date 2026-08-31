@@ -1,11 +1,11 @@
 /**
- * Format a number as currency (USD by default)
+ * Format a number as Pakistani rupees by default.
  * @param amount - The amount to format
- * @param currency - The currency code, defaults to 'USD'
+ * @param currency - The ISO currency code, defaults to PKR.
  * @returns Formatted currency string
  */
-export function formatCurrency(amount: number, currency = 'USD'): string {
-  return new Intl.NumberFormat('en-US', {
+export function formatCurrency(amount: number, currency = 'PKR'): string {
+  return new Intl.NumberFormat('en-PK', {
     style: 'currency',
     currency,
   }).format(amount);

@@ -1,18 +1,30 @@
 /** @type {import('next').NextConfig} */
 
+const remotePatterns = [
+  {
+    protocol: 'https',
+    hostname: 'images.unsplash.com',
+  },
+];
+
+try {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (supabaseUrl) {
+    remotePatterns.push({
+      protocol: 'https',
+      hostname: new URL(supabaseUrl).hostname,
+    });
+  }
+} catch {
+  // Environment validation in the application reports an invalid URL clearly.
+}
+
 const nextConfig = {
   images: {
-    remotePatterns: [
-      {
-        hostname: "**",
-      },
-      {
-        hostname: "fakestoreapi.com",
-      },
-    ],
-    dangerouslyAllowSVG: true,
-    unoptimized: process.env.NODE_ENV === "development",
-},
+    remotePatterns,
+    dangerouslyAllowSVG: false,
+    unoptimized: process.env.NODE_ENV === 'development',
+  },
 };
 
 export default nextConfig;

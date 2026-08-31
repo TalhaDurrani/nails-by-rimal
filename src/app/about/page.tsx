@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
+import { NewsletterForm } from "@/components/NewsletterForm";
 
 export default function AboutPage() {
   // Animation for reveal elements
@@ -36,7 +37,7 @@ export default function AboutPage() {
       </div>
 
       <section style={{ paddingTop: '20px' }}>
-        <div className="container about-hero">
+        <div className="container grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           <div className="reveal in">
             <span className="eyebrow">Handmade in Rawalpindi</span>
             <h2 style={{ fontSize: 'clamp(28px,3.4vw,40px)', margin: '16px 0 20px' }}>Nails that feel like a love letter to yourself.</h2>
@@ -47,7 +48,7 @@ export default function AboutPage() {
               We design in tiny batches — usually under thirty sets per shade — so every collection stays a little rare, and a little more personal.
             </p>
           </div>
-          <div className="about-visual reveal in">
+          <div className="about-visual reveal in h-[420px] flex items-center justify-center relative order-first lg:order-none">
             <div className="hex-frame h2"></div>
             <div className="hex-frame"></div>
             <div className="fan-wrap palette-gold">
@@ -102,7 +103,7 @@ export default function AboutPage() {
             <span className="eyebrow">What We Stand For</span>
             <h2>Our values</h2>
           </div>
-          <div className="values-grid">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
             <div className="value-card reveal">
               <div className="why-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/><circle cx="12" cy="12" r="3"/></svg></div>
               <h4>Handmade, always</h4>
@@ -128,7 +129,7 @@ export default function AboutPage() {
             <span className="eyebrow" style={{ color: 'var(--gold-light)' }}>Meet the Studio</span>
             <h2>The hands behind your nails</h2>
           </div>
-          <div className="team-grid">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 text-center">
             <div className="reveal">
               <div className="team-avatar">R</div>
               <h4 style={{ color: 'var(--cream)' }}>Rimal</h4>
@@ -153,10 +154,7 @@ export default function AboutPage() {
           <span className="eyebrow" style={{ color: 'var(--gold-light)' }}>Join the Atelier</span>
           <h2>Get first look at new drops</h2>
           <p>Restocks, seasonal edits and 10% off your first set — straight to your inbox.</p>
-          <form className="nl-form" onSubmit={(e) => { e.preventDefault(); const btn = e.currentTarget.querySelector('button'); if(btn) btn.textContent = 'Subscribed ✓'; }}>
-            <input type="email" placeholder="Your email address" required />
-            <button type="submit">Subscribe</button>
-          </form>
+          <NewsletterForm />
         </div>
       </section>
 

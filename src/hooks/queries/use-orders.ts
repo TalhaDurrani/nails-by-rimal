@@ -1,5 +1,5 @@
 import { orderService } from '@/services/order/orderService'
-import { OrderType } from '@/types'
+import { OrderStatus, OrderType } from '@/types'
 import {
 	useQuery,
 	useMutation,
@@ -63,27 +63,6 @@ export function useOrder(orderId: string, options?: UseQueryOptions<OrderType>) 
 	})
 }
 
-// Create order mutation
-export function useCreateOrder() {
-	const queryClient = useQueryClient()
-
-	return useMutation({
-		mutationFn: orderService.createOrder,
-		onSuccess: (_data, variables) => {
-			// Invalidate orders list for the user
-			if (variables.userId) {
-				queryClient.invalidateQueries({
-					queryKey: orderKeys.list(variables.userId),
-				})
-			}
-			// Also invalidate all orders lists
-			queryClient.invalidateQueries({
-				queryKey: orderKeys.lists(),
-			})
-		},
-	})
-}
-
 // Update order status mutation
 export function useUpdateOrderStatus() {
 	const queryClient = useQueryClient()
@@ -94,7 +73,7 @@ export function useUpdateOrderStatus() {
 			status,
 		}: {
 			orderId: number
-			status: string
+			status: OrderStatus
 		}) => {
 			return orderService.updateOrderStatus(String(orderId), status)
 		},

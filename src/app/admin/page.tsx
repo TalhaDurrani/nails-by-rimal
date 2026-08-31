@@ -1,12 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useAdmin } from "@/hooks/useAdmin";
-import { useAuth } from "@/context/AuthContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useCallback, useEffect, useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import {
   Users,
@@ -16,7 +12,6 @@ import {
   AlertTriangle,
   DollarSign,
   Activity,
-  Settings,
 } from "lucide-react";
 import { adminProductService } from "@/services/admin/adminProductService";
 import { adminOrderService } from "@/services/admin/adminOrderService";
@@ -45,25 +40,10 @@ interface DashboardStats {
 }
 
 export default function AdminDashboard() {
-  const { user } = useAuth();
-  const { isAdmin, loading: adminLoading, error: adminError } = useAdmin();
-  const router = useRouter();
-
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!adminLoading && !isAdmin) {
-      router.push("/dashboard");
-      return;
-    }
-
-    if (isAdmin) {
-      fetchDashboardData();
-    }
-  }, [isAdmin, adminLoading, router]);
-
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -99,34 +79,18 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  if (adminLoading || loading) {
+  useEffect(() => {
+    void fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  if (loading) {
     return (
       <div className="container mx-auto py-8">
         <div className="flex h-64 items-center justify-center">
           <LoadingSpinner />
         </div>
-      </div>
-    );
-  }
-
-  if (adminError || !isAdmin) {
-    return (
-      <div className="container mx-auto py-8">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-red-600">Access Denied</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="mb-4">
-              You don&apos;t have admin privileges to access this page.
-            </p>
-            <Link href="/dashboard">
-              <Button>Go to User Dashboard</Button>
-            </Link>
-          </CardContent>
-        </Card>
       </div>
     );
   }
@@ -144,196 +108,189 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="container mx-auto space-y-6 py-8">
-      <div className="flex items-center justify-between">
+    <div className="space-y-8">
+      {/* Page Header */}
+      <div>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back, {user?.email}</p>
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-500 mt-1">Welcome back! Here is what is happening with your store.</p>
         </div>
-        <Badge variant="secondary" className="bg-primary/15 text-primary">
-          <Settings className="mr-1 h-3 w-3" />
-          Admin
-        </Badge>
       </div>
 
-      {/* Overview Stats Cards */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <DollarSign className="text-muted-foreground h-4 w-4" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Revenue Card */}
+        <div className="bg-white border border-[#E8CE9C]/40 rounded-lg p-6 shadow-sm hover:shadow-md transition-all duration-300">
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-xs uppercase tracking-wider text-[#B48A4E] font-medium">Total Revenue</p>
+            <div className="p-2 bg-gradient-to-br from-[#D89AA0]/10 to-[#B48A4E]/10 rounded-lg">
+              <DollarSign className="w-5 h-5 text-[#BE7681]" />
+              </div>
+            </div>
+            <div className="text-3xl font-bold font-serif text-[#2E2624]">
               {formatCurrency(stats.orders.revenue)}
             </div>
-            <p className="text-muted-foreground text-xs">
+            <p className="text-sm text-[#7A6C68] mt-2">
               {stats.orders.total} total orders
             </p>
-          </CardContent>
-        </Card>
+          </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Products
-            </CardTitle>
-            <Package className="text-muted-foreground h-4 w-4" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.products.total}</div>
-            <p className="text-muted-foreground text-xs">
+          {/* Products Card */}
+          <div className="bg-white border border-[#E8CE9C]/40 rounded-lg p-6 shadow-sm hover:shadow-md transition-all duration-300">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-xs uppercase tracking-wider text-[#B48A4E] font-medium">Total Products</p>
+              <div className="p-2 bg-gradient-to-br from-[#E8CE9C]/10 to-[#B48A4E]/10 rounded-lg">
+                <Package className="w-5 h-5 text-[#B48A4E]" />
+              </div>
+            </div>
+            <div className="text-3xl font-bold font-serif text-[#2E2624]">
+              {stats.products.total}
+            </div>
+            <p className="text-sm text-[#7A6C68] mt-2">
               {stats.products.lowStock} low stock
             </p>
-          </CardContent>
-        </Card>
+          </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-            <Users className="text-muted-foreground h-4 w-4" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.users.total}</div>
-            <p className="text-muted-foreground text-xs">
-              {stats.users.active} active this month
+          {/* Admin accounts card */}
+          <div className="bg-white border border-[#E8CE9C]/40 rounded-lg p-6 shadow-sm hover:shadow-md transition-all duration-300">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-xs uppercase tracking-wider text-[#B48A4E] font-medium">Admin Accounts</p>
+              <div className="p-2 bg-gradient-to-br from-[#D89AA0]/10 to-[#E8CE9C]/10 rounded-lg">
+                <Users className="w-5 h-5 text-[#D89AA0]" />
+              </div>
+            </div>
+            <div className="text-3xl font-bold font-serif text-[#2E2624]">
+              {stats.users.admins}
+            </div>
+            <p className="text-sm text-[#7A6C68] mt-2">
+              Authorized dashboard users
             </p>
-          </CardContent>
-        </Card>
+          </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Pending Orders
-            </CardTitle>
-            <ShoppingCart className="text-muted-foreground h-4 w-4" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.orders.pending}</div>
-            <p className="text-muted-foreground text-xs">Need attention</p>
-          </CardContent>
-        </Card>
+          {/* Pending Orders Card */}
+          <div className="bg-white border border-[#E8CE9C]/40 rounded-lg p-6 shadow-sm hover:shadow-md transition-all duration-300">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-xs uppercase tracking-wider text-[#B48A4E] font-medium">Pending Orders</p>
+              <div className="p-2 bg-gradient-to-br from-[#BE7681]/10 to-[#D89AA0]/10 rounded-lg">
+                <ShoppingCart className="w-5 h-5 text-[#BE7681]" />
+              </div>
+            </div>
+            <div className="text-3xl font-bold font-serif text-[#2E2624]">
+              {stats.orders.pending}
+            </div>
+            <p className="text-sm text-[#7A6C68] mt-2">
+              Awaiting attention
+            </p>
+          </div>
       </div>
 
-      {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <Link href="/admin/products">
-              <Button className="w-full cursor-pointer" variant="outline">
+        {/* Quick Actions */}
+        <div className="bg-gradient-to-b from-[#FCF1ED] to-[#FBF6F2] border border-[#E8CE9C]/40 rounded-lg p-8">
+          <h2 className="text-2xl font-serif font-semibold text-[#2E2624] mb-6">Quick Actions</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Link href="/admin/products" className="block">
+              <Button className="w-full bg-gradient-to-r from-[#D89AA0] to-[#B48A4E] text-white hover:shadow-lg transition-all duration-300 cursor-pointer px-4 py-3">
                 <Package className="mr-2 h-4 w-4" />
                 Manage Products
               </Button>
             </Link>
-            <Link href="/admin/orders">
-              <Button className="w-full cursor-pointer" variant="outline">
+            <Link href="/admin/orders" className="block">
+              <Button className="w-full bg-gradient-to-r from-[#BE7681] to-[#B48A4E] text-white hover:shadow-lg transition-all duration-300 cursor-pointer px-4 py-3">
                 <ShoppingCart className="mr-2 h-4 w-4" />
                 Manage Orders
               </Button>
             </Link>
-            <Link href="/admin/users">
-              <Button className="w-full cursor-pointer" variant="outline">
+            <Link href="/admin/users" className="block">
+              <Button className="w-full bg-gradient-to-r from-[#E8CE9C] to-[#B48A4E] text-[#2E2624] hover:shadow-lg transition-all duration-300 cursor-pointer px-4 py-3 font-semibold">
                 <Users className="mr-2 h-4 w-4" />
-                Manage Users
+                Manage Admins
               </Button>
             </Link>
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Detailed Analytics */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <TrendingUp className="mr-2 h-5 w-5" />
-              Key Metrics
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground text-sm">
-                Average Order Value
-              </span>
-              <span className="font-medium">
+        {/* Detailed Analytics */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Key Metrics */}
+        <div className="bg-white border border-[#E8CE9C]/40 rounded-lg p-8">
+          <div className="flex items-center mb-6">
+            <TrendingUp className="w-5 h-5 text-[#B48A4E] mr-3" />
+            <h3 className="text-xl font-serif font-semibold text-[#2E2624]">Key Metrics</h3>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between py-3 border-b border-[#E8CE9C]/40">
+              <span className="text-[13px] text-[#7A6C68]">Average Order Value</span>
+              <span className="font-semibold text-[#2E2624]">
                 {formatCurrency(stats.orders.averageValue)}
               </span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground text-sm">
-                Inventory Value
-              </span>
-              <span className="font-medium">
+            <div className="flex items-center justify-between py-3 border-b border-[#E8CE9C]/40">
+              <span className="text-[13px] text-[#7A6C68]">Inventory Value</span>
+              <span className="font-semibold text-[#2E2624]">
                 {formatCurrency(stats.products.totalValue)}
               </span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground text-sm">
-                New Users This Month
-              </span>
-              <span className="font-medium">{stats.users.newThisMonth}</span>
+            <div className="flex items-center justify-between py-3 border-b border-[#E8CE9C]/40">
+              <span className="text-[13px] text-[#7A6C68]">Accounts Added This Month</span>
+              <span className="font-semibold text-[#2E2624]">{stats.users.newThisMonth}</span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground text-sm">Admin Users</span>
-              <span className="font-medium">{stats.users.admins}</span>
+            <div className="flex items-center justify-between py-3">
+              <span className="text-[13px] text-[#7A6C68]">Admin Users</span>
+              <span className="font-semibold text-[#2E2624]">{stats.users.admins}</span>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <AlertTriangle className="mr-2 h-5 w-5" />
-              Alerts & Notifications
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
+        {/* Alerts */}
+        <div className="bg-white border border-[#E8CE9C]/40 rounded-lg p-8">
+          <div className="flex items-center mb-6">
+            <AlertTriangle className="w-5 h-5 text-[#B48A4E] mr-3" />
+            <h3 className="text-xl font-serif font-semibold text-[#2E2624]">Alerts & Notifications</h3>
+          </div>
+          <div className="space-y-3">
             {stats.products.lowStock > 0 && (
-              <div className="flex items-center rounded-lg border border-yellow-200 bg-yellow-50 p-3">
-                <AlertTriangle className="mr-2 h-4 w-4 text-yellow-600" />
+              <div className="flex items-start p-4 rounded-lg bg-[#FFF8DC] border border-[#FFE680]">
+                <AlertTriangle className="w-4 h-4 text-[#FF9F40] mr-3 mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="text-sm font-medium text-yellow-800">
+                  <p className="text-[13px] font-semibold text-[#2E2624]">
                     Low Stock Alert
                   </p>
-                  <p className="text-xs text-yellow-600">
-                    {stats.products.lowStock} products are running low on stock
+                  <p className="text-[12px] text-[#7A6C68] mt-1">
+                    {stats.products.lowStock} products running low on stock
                   </p>
                 </div>
               </div>
             )}
 
             {stats.orders.pending > 0 && (
-              <div className="border-primary/30 bg-primary/10 flex items-center rounded-lg border p-3">
-                <Activity className="text-primary mr-2 h-4 w-4" />
+              <div className="flex items-start p-4 rounded-lg bg-[#F0E8FF] border border-[#D89AA0]">
+                <Activity className="w-4 h-4 text-[#BE7681] mr-3 mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="text-primary text-sm font-medium">
+                  <p className="text-[13px] font-semibold text-[#2E2624]">
                     Pending Orders
                   </p>
-                  <p className="text-primary text-xs">
-                    {stats.orders.pending} orders are waiting for processing
+                  <p className="text-[12px] text-[#7A6C68] mt-1">
+                    {stats.orders.pending} orders waiting for processing
                   </p>
                 </div>
               </div>
             )}
 
             {stats.products.lowStock === 0 && stats.orders.pending === 0 && (
-              <div className="flex items-center rounded-lg border border-green-200 bg-green-50 p-3">
-                <Activity className="mr-2 h-4 w-4 text-green-600" />
+              <div className="flex items-start p-4 rounded-lg bg-[#E8F8E8] border border-[#90EE90]">
+                <Activity className="w-4 h-4 text-[#2D8C2D] mr-3 mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="text-sm font-medium text-green-800">
+                  <p className="text-[13px] font-semibold text-[#2E2624]">
                     All Clear
                   </p>
-                  <p className="text-xs text-green-600">
+                  <p className="text-[12px] text-[#7A6C68] mt-1">
                     No immediate attention required
                   </p>
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   );

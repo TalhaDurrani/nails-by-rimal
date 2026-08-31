@@ -1,20 +1,21 @@
 import { supabase } from '@/lib/supabase/client';
 import { ProductType } from '../../types';
 import { isNoRowsError, toUserFacingQueryError } from '@/utils/errorHandling';
+import { mapProductRecord, PRODUCT_SELECT } from './productMapper';
 
 export const productService = {
   async getProducts(): Promise<ProductType[]> {
     try {
       const { data, error } = await supabase
         .from('products')
-        .select('*, category:categories(*)')
+        .select(PRODUCT_SELECT)
         .order('title');
 
       if (error) {
         throw toUserFacingQueryError('Products', error);
       }
 
-      return data as ProductType[];
+      return (data || []).map(mapProductRecord);
     } catch (error) {
       throw error instanceof Error
         ? error
@@ -26,7 +27,7 @@ export const productService = {
     try {
       const { data, error } = await supabase
         .from('products')
-        .select('*, category:categories(*)')
+        .select(PRODUCT_SELECT)
         .eq('product_id', id)
         .single();
 
@@ -37,7 +38,7 @@ export const productService = {
         throw toUserFacingQueryError('Product', error);
       }
 
-      return data as ProductType;
+      return mapProductRecord(data);
     } catch (error) {
       throw error instanceof Error
         ? error
@@ -49,7 +50,7 @@ export const productService = {
     try {
       const { data, error } = await supabase
         .from('products')
-        .select('*, category:categories(*)')
+        .select(PRODUCT_SELECT)
         .eq('category_id', categoryId)
         .order('title');
 
@@ -57,7 +58,7 @@ export const productService = {
         throw toUserFacingQueryError('Products', error);
       }
 
-      return data as ProductType[];
+      return (data || []).map(mapProductRecord);
     } catch (error) {
       throw error instanceof Error
         ? error

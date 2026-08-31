@@ -58,7 +58,7 @@ export function OrderDetailsModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Package className="h-5 w-5" />
-            Order #{order.id}
+            {order.order_number}
           </DialogTitle>
           <DialogDescription>
             View detailed order information, customer details, and items
@@ -68,7 +68,7 @@ export function OrderDetailsModal({
         <ScrollArea className="max-h-[60vh]">
           <div className="space-y-6 pr-4">
             {/* Order Summary */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-slate-500" />
                 <div>
@@ -122,6 +122,29 @@ export function OrderDetailsModal({
             </div>
 
             <Separator />
+
+            {(order.box_option_name || order.gift_packing_name || order.gift_message) && (
+              <>
+                <div>
+                  <h3 className="mb-3 flex items-center gap-2 text-lg font-semibold">
+                    <Package className="h-5 w-5" />
+                    Packaging &amp; Gift Details
+                  </h3>
+                  <div className="space-y-2 rounded-lg border bg-amber-50/50 p-4 text-sm">
+                    {order.box_option_name && (
+                      <p><span className="font-medium">Box:</span> {order.box_option_name} ({formatCurrency(Number(order.box_option_price || 0))})</p>
+                    )}
+                    {order.gift_packing_name && (
+                      <p><span className="font-medium">Gift packing:</span> {order.gift_packing_name} ({formatCurrency(Number(order.gift_packing_price || 0))})</p>
+                    )}
+                    {order.gift_message && (
+                      <p className="whitespace-pre-wrap"><span className="font-medium">Gift message:</span> {order.gift_message}</p>
+                    )}
+                  </div>
+                </div>
+                <Separator />
+              </>
+            )}
 
             {/* Customer Information */}
             <div>
@@ -194,10 +217,10 @@ export function OrderDetailsModal({
                       className="bg-card flex items-center gap-4 rounded-lg border p-4 shadow-sm"
                     >
                       <div className="bg-muted h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg">
-                        {item.product?.image ? (
+                        {item.variant?.product?.image ? (
                           <Image
-                            src={item.product.image}
-                            alt={item.product?.title || "Product"}
+                            src={item.variant.product.image}
+                            alt={item.variant.product.title || "Product"}
                             width={64}
                             height={64}
                             className="h-full w-full object-cover"
@@ -211,19 +234,24 @@ export function OrderDetailsModal({
 
                       <div className="flex-1">
                         <h4 className="text-foreground font-medium">
-                          {item.product?.title || "Product"}
+                          {item.variant?.product?.title || "Product"}
                         </h4>
+                        {item.bundle_name && (
+                          <p className="text-sm font-semibold text-[#BE7681]">
+                            {item.bundle_name} · {Number(item.bundle_discount || 0)}% off
+                          </p>
+                        )}
                         <p className="text-muted-foreground text-sm">
                           Quantity: {item.quantity}
                         </p>
                         <p className="text-muted-foreground text-sm">
-                          Unit Price: {formatCurrency(item.price)}
+                          Unit Price: {formatCurrency(item.price_at_purchase)}
                         </p>
                       </div>
 
                       <div className="text-right">
                         <p className="text-foreground font-semibold">
-                          {formatCurrency(item.quantity * item.price)}
+                          {formatCurrency(item.quantity * item.price_at_purchase)}
                         </p>
                       </div>
                     </div>

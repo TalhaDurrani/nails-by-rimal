@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { Database } from '@/types/supabase';
+import { fetchWithTimeout } from './fetchWithTimeout';
 
 /**
  * Creates a Supabase client for server-side usage with proper cookie handling
@@ -10,8 +11,9 @@ export const createServerSupabase = async () => {
 
   return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     {
+      global: { fetch: fetchWithTimeout },
       cookies: {
         getAll: () => cookieStore.getAll(),
         setAll: (cookies) => {
@@ -60,7 +62,7 @@ export const getUserProfile = async () => {
   const { data: profile } = await supabase
     .from('profiles')
     .select('*')
-    .eq('id', user.id)
+    .eq('profile_id', user.id)
     .single();
 
   return profile;

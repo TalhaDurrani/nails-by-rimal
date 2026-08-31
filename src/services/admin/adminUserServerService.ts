@@ -1,4 +1,6 @@
-import { createServerSupabase } from "@/lib/supabase/server";
+import "server-only";
+
+import { createAdminSupabase } from "@/lib/supabase/admin";
 import { ProfileType } from "@/types";
 
 export interface UserFilters {
@@ -35,17 +37,20 @@ export const adminUserServerService = {
     limit: number = 50,
   ): Promise<{ users: SanitizedUserWithStats[]; total: number }> {
     try {
-      const supabase = await createServerSupabase();
-      let query = supabase.from("profiles").select("*");
+      const supabase = createAdminSupabase();
+      let query = supabase.from("profiles").select("*", { count: "exact" });
 
       // Apply filters
       if (filters.role) {
         query = query.eq("role", filters.role);
       }
       if (filters.searchTerm) {
+        const safeSearch = filters.searchTerm.replace(/[%_,().]/g, " ").trim();
+        if (safeSearch) {
         query = query.or(
-          `username.ilike.%${filters.searchTerm}%,email.ilike.%${filters.searchTerm}%`,
+            `username.ilike.%${safeSearch}%,email.ilike.%${safeSearch}%`,
         );
+        }
       }
       if (filters.dateFrom) {
         query = query.gte("created_at", filters.dateFrom);
@@ -54,14 +59,8 @@ export const adminUserServerService = {
         query = query.lte("created_at", filters.dateTo);
       }
 
-      // Get total count for pagination
-      const countQuery = supabase
-        .from("profiles")
-        .select("*", { count: "exact", head: true });
-      const { count } = await countQuery;
-
       // Get paginated results
-      const { data, error } = await query
+      const { data, error, count } = await query
         .order("created_at", { ascending: false })
         .range((page - 1) * limit, page * limit - 1);
 
@@ -70,16 +69,30 @@ export const adminUserServerService = {
         throw error;
       }
 
-      // Get additional stats for each user and sanitize data
-      const sanitizedUsers = await Promise.all(
-        (data || []).map(async (user) => {
-          // Get order stats (but don't expose detailed spending data)
-          const { data: orders } = await supabase
-            .from("orders")
-            .select("total, created_at")
-            .eq("user_id", user.profile_id);
+      const userIds = (data || []).map((user) => user.profile_id);
+      type UserOrder = { user_id: string | null; total: number; created_at: string };
+      let orders: UserOrder[] = [];
+      let orderError: { message: string } | null = null;
+      if (userIds.length) {
+        const result = await supabase
+          .from("orders")
+          .select("user_id, total, created_at")
+          .in("user_id", userIds)
+          .neq("status", "cancelled");
+        orders = (result.data || []) as UserOrder[];
+        orderError = result.error;
+      }
+      if (orderError) throw orderError;
+      const ordersByUser = new Map<string, UserOrder[]>();
+      for (const order of orders || []) {
+        if (!order.user_id) continue;
+        const userOrders = ordersByUser.get(order.user_id) || [];
+        userOrders.push(order);
+        ordersByUser.set(order.user_id, userOrders);
+      }
 
-          const userOrders = orders || [];
+      const sanitizedUsers = (data || []).map((user) => {
+          const userOrders = ordersByUser.get(user.profile_id) || [];
           const totalOrders = userOrders.length;
           const totalSpent = userOrders.reduce(
             (sum, order) => sum + order.total,
@@ -107,8 +120,7 @@ export const adminUserServerService = {
             spending_tier: getSpendingTier(totalSpent),
             is_active: isActive,
           };
-        }),
-      );
+        });
 
       return {
         users: sanitizedUsers,
@@ -128,7 +140,18 @@ export const adminUserServerService = {
     role: "admin" | "user",
   ): Promise<ProfileType | null> {
     try {
-      const supabase = await createServerSupabase();
+      const supabase = createAdminSupabase();
+
+      if (role === "user") {
+        const { count, error: countError } = await supabase
+          .from("profiles")
+          .select("profile_id", { count: "exact", head: true })
+          .eq("role", "admin");
+        if (countError) throw countError;
+        if ((count || 0) <= 1) {
+          throw new Error("The last administrator cannot be demoted");
+        }
+      }
 
       const { data, error } = await supabase
         .from("profiles")
@@ -145,7 +168,7 @@ export const adminUserServerService = {
       return data;
     } catch (err) {
       console.error("Failed to update user role:", err);
-      return null;
+      throw err;
     }
   },
 
@@ -154,13 +177,17 @@ export const adminUserServerService = {
    */
   async deleteUser(userId: string): Promise<boolean> {
     try {
-      const supabase = await createServerSupabase();
+      const supabase = createAdminSupabase();
+      const { count, error: orderError } = await supabase
+        .from("orders")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId);
+      if (orderError) throw orderError;
+      if ((count || 0) > 0) {
+        throw new Error("Users with order history cannot be deleted");
+      }
 
-      // This would need proper cascade handling in production
-      const { error } = await supabase
-        .from("profiles")
-        .delete()
-        .eq("profile_id", userId);
+      const { error } = await supabase.auth.admin.deleteUser(userId);
 
       if (error) {
         console.error("Error deleting user:", error);
@@ -170,7 +197,7 @@ export const adminUserServerService = {
       return true;
     } catch (err) {
       console.error("Failed to delete user:", err);
-      return false;
+      throw err;
     }
   },
 };

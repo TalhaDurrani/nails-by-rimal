@@ -4,25 +4,68 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useCart } from "@/context/CartContext";
 import { ProductType } from "@/types";
-import { useProducts } from "@/hooks/queries";
 
 type ProductDetailsClientProps = {
   product: ProductType;
+  relatedProducts: ProductType[];
 };
 
 export default function ProductDetailsClient({
   product,
+  relatedProducts,
 }: ProductDetailsClientProps) {
   const { addToCart } = useCart();
-  const { products } = useProducts();
+  const variants = product.variants ?? [];
+  const initialVariant = variants.find((variant) => variant.stock_quantity > 0) ?? variants[0];
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState("desc");
-  const [isFavorited, setIsFavorited] = useState(false);
   
-  // Selection states
-  const [shape, setShape] = useState("Almond");
-  const [length, setLength] = useState("Medium");
-  const [finishIndex, setFinishIndex] = useState(0);
+  const [shapeId, setShapeId] = useState(initialVariant?.shape_id);
+  const [lengthId, setLengthId] = useState(initialVariant?.length_id);
+  const [finishId, setFinishId] = useState(initialVariant?.finish_id);
+
+  const selectedVariant = variants.find(
+    (variant) =>
+      variant.shape_id === shapeId &&
+      variant.length_id === lengthId &&
+      variant.finish_id === finishId,
+  );
+  const selectedPrice = Number(selectedVariant?.price_override ?? product.price);
+
+  const uniqueOptions = <T extends { id: number }>(options: Array<T | undefined>) =>
+    Array.from(
+      new Map(options.filter((option): option is T => Boolean(option)).map((option) => [option.id, option])).values(),
+    );
+
+  const shapes = uniqueOptions(variants.map((variant) => variant.shape));
+  const lengths = uniqueOptions(variants.map((variant) => variant.length));
+  const finishes = uniqueOptions(variants.map((variant) => variant.finish));
+
+  const selectVariantOption = (
+    field: "shape_id" | "length_id" | "finish_id",
+    value: number,
+  ) => {
+    const exact = variants.find(
+      (variant) =>
+        variant[field] === value &&
+        (field === "shape_id" || variant.shape_id === shapeId) &&
+        (field === "length_id" || variant.length_id === lengthId) &&
+        (field === "finish_id" || variant.finish_id === finishId) &&
+        variant.stock_quantity > 0,
+    );
+    const fallback =
+      exact ??
+      variants.find(
+        (variant) => variant[field] === value && variant.stock_quantity > 0,
+      ) ??
+      variants.find((variant) => variant[field] === value);
+
+    if (!fallback) return;
+    setShapeId(fallback.shape_id);
+    setLengthId(fallback.length_id);
+    setFinishId(fallback.finish_id);
+    setQuantity(1);
+  };
 
   // Animation for reveal elements
   useEffect(() => {
@@ -34,19 +77,16 @@ export default function ProductDetailsClient({
           io.unobserve(entry.target);
         }
       });
-    }, { threshold: 0.15 });
+    }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
 
     revealEls.forEach((el) => io.observe(el));
     return () => io.disconnect();
-  }, [products]);
+  }, []);
 
-  const handleAddToCart = () => {
-    for (let i = 0; i < quantity; i++) {
-      addToCart(product);
-    }
+  const handleAddToCart = async () => {
+    if (!selectedVariant || selectedVariant.stock_quantity < 1) return;
+    await addToCart(product, selectedVariant, quantity);
   };
-
-  const relatedProducts = products?.filter(p => p.product_id !== product.product_id).slice(0, 4) || [];
 
   return (
     <main className="w-full flex flex-col min-h-screen">
@@ -56,7 +96,7 @@ export default function ProductDetailsClient({
             <Link href="/">Home</Link> / <Link href="/products">Shop</Link> / {product.title}
           </div>
 
-          <div className="product-layout">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-start">
             <div className="reveal in">
               <div className="pd-gallery-main">
                 {product.image ? (
@@ -70,7 +110,11 @@ export default function ProductDetailsClient({
               <div className="pd-thumbs">
                 <div className="pd-thumb active">
                   {product.image ? (
-                    <img src={product.image} className="w-full h-full object-cover rounded-[12px]" />
+                    <img
+                      src={product.image}
+                      alt={`${product.title} thumbnail`}
+                      className="w-full h-full object-cover rounded-[12px]"
+                    />
                   ) : (
                     <div className="fan-wrap"><div className="nail nail1"></div><div className="nail nail2"></div><div className="nail nail3"></div><div className="nail nail4"></div><div className="nail nail5"></div></div>
                   )}
@@ -88,10 +132,8 @@ export default function ProductDetailsClient({
             <div className="pd-info reveal in">
               <div className="cat">Shape &middot; Length &middot; Collection</div>
               <h1>{product.title}</h1>
-              <div className="stars">&#9733;&#9733;&#9733;&#9733;&#9733; <span>128 reviews</span></div>
               <div className="pd-price">
-                <span className="was">Rs {(product.price * 1.2).toLocaleString()}</span>
-                Rs {product.price.toLocaleString()}
+                Rs {selectedPrice.toLocaleString()}
               </div>
               <p className="pd-desc">
                 {product.description || "A soft rosy-nude fan finished with a hand-painted pearl edge — our most-loved everyday set. Hypoallergenic adhesive tabs included, no glue required."}
@@ -100,8 +142,15 @@ export default function ProductDetailsClient({
               <div className="pd-block">
                 <div className="label">Shape</div>
                 <div className="opt-row">
-                  {["Almond", "Coffin", "Square", "Stiletto"].map(s => (
-                    <div key={s} className={`opt-pill ${shape === s ? 'active' : ''}`} onClick={() => setShape(s)}>{s}</div>
+                  {shapes.map((shape) => (
+                    <button
+                      type="button"
+                      key={shape.id}
+                      className={`opt-pill ${shapeId === shape.id ? 'active' : ''}`}
+                      onClick={() => selectVariantOption("shape_id", shape.id)}
+                    >
+                      {shape.name}
+                    </button>
                   ))}
                 </div>
               </div>
@@ -109,8 +158,15 @@ export default function ProductDetailsClient({
               <div className="pd-block">
                 <div className="label">Length</div>
                 <div className="opt-row">
-                  {["Short", "Medium", "Long"].map(l => (
-                    <div key={l} className={`opt-pill ${length === l ? 'active' : ''}`} onClick={() => setLength(l)}>{l}</div>
+                  {lengths.map((length) => (
+                    <button
+                      type="button"
+                      key={length.id}
+                      className={`opt-pill ${lengthId === length.id ? 'active' : ''}`}
+                      onClick={() => selectVariantOption("length_id", length.id)}
+                    >
+                      {length.name}
+                    </button>
                   ))}
                 </div>
               </div>
@@ -118,10 +174,17 @@ export default function ProductDetailsClient({
               <div className="pd-block">
                 <div className="label">Finish</div>
                 <div className="opt-row">
-                  <div className={`opt-swatch ${finishIndex === 0 ? 'active' : ''}`} style={{ background: 'linear-gradient(160deg,#F3D6CE,#E6AFAA)' }} onClick={() => setFinishIndex(0)}></div>
-                  <div className={`opt-swatch ${finishIndex === 1 ? 'active' : ''}`} style={{ background: 'linear-gradient(160deg,#F7ECD9,#C7A25F)' }} onClick={() => setFinishIndex(1)}></div>
-                  <div className={`opt-swatch ${finishIndex === 2 ? 'active' : ''}`} style={{ background: 'linear-gradient(160deg,#8C5560,#4B2A31)' }} onClick={() => setFinishIndex(2)}></div>
-                  <div className={`opt-swatch ${finishIndex === 3 ? 'active' : ''}`} style={{ background: 'linear-gradient(160deg,#FBF6F2,#EAD9CE)', border: '1px solid #eee' }} onClick={() => setFinishIndex(3)}></div>
+                  {finishes.map((finish) => (
+                    <button
+                      type="button"
+                      key={finish.id}
+                      className={`opt-swatch ${finishId === finish.id ? 'active' : ''}`}
+                      style={{ background: finish.swatch_hex ?? '#ead9ce' }}
+                      onClick={() => selectVariantOption("finish_id", finish.id)}
+                      aria-label={finish.name}
+                      title={finish.name}
+                    />
+                  ))}
                 </div>
               </div>
 
@@ -130,19 +193,26 @@ export default function ProductDetailsClient({
                 <div className="qty-box">
                   <button onClick={() => setQuantity(Math.max(1, quantity - 1))}>&minus;</button>
                   <span>{quantity}</span>
-                  <button onClick={() => setQuantity(quantity + 1)}>+</button>
+                  <button
+                    onClick={() =>
+                      setQuantity(
+                        Math.min(selectedVariant?.stock_quantity ?? 1, quantity + 1),
+                      )
+                    }
+                  >+</button>
                 </div>
               </div>
 
               <div className="pd-ctas">
-                <button onClick={handleAddToCart} className="btn btn-fill">Add to Cart — Rs {(product.price * quantity).toLocaleString()}</button>
-                <div 
-                  className="btn btn-outline" 
-                  style={{ cursor: 'pointer', color: isFavorited ? 'var(--rose-deep)' : 'var(--ink)' }}
-                  onClick={() => setIsFavorited(!isFavorited)}
+                <button
+                  onClick={() => void handleAddToCart()}
+                  className="btn btn-fill"
+                  disabled={!selectedVariant || selectedVariant.stock_quantity < 1}
                 >
-                  {isFavorited ? '♥ Saved' : '♡ Save'}
-                </div>
+                  {selectedVariant?.stock_quantity
+                    ? `Add to Cart — Rs ${(selectedPrice * quantity).toLocaleString()}`
+                    : "Out of Stock"}
+                </button>
               </div>
 
               <div className="pd-feats">
@@ -157,7 +227,6 @@ export default function ProductDetailsClient({
             <div className={`pd-tab ${activeTab === 'desc' ? 'active' : ''}`} onClick={() => setActiveTab('desc')}>Description</div>
             <div className={`pd-tab ${activeTab === 'apply' ? 'active' : ''}`} onClick={() => setActiveTab('apply')}>How to Apply</div>
             <div className={`pd-tab ${activeTab === 'care' ? 'active' : ''}`} onClick={() => setActiveTab('care')}>Care &amp; Removal</div>
-            <div className={`pd-tab ${activeTab === 'reviews' ? 'active' : ''}`} onClick={() => setActiveTab('reviews')}>Reviews (128)</div>
           </div>
 
           <div className={`tab-panel ${activeTab === 'desc' ? 'active' : ''}`}>
@@ -174,10 +243,6 @@ export default function ProductDetailsClient({
           <div className={`tab-panel ${activeTab === 'care' ? 'active' : ''}`}>
             <p>Avoid prolonged water exposure in the first two hours. To remove, soak in warm water for 10 minutes and gently lift from the cuticle edge — never pull. Store the set flat in its box to reuse.</p>
           </div>
-          <div className={`tab-panel ${activeTab === 'reviews' ? 'active' : ''}`}>
-            <p>&quot;They looked salon-fresh for two full weeks — and I didn&apos;t touch a drop of acrylic.&quot; — Sana K.</p>
-            <p style={{ marginTop: '12px' }}>&quot;Fit was perfect straight out of the box, no filing needed.&quot; — Areeba T.</p>
-          </div>
         </div>
       </section>
 
@@ -187,7 +252,7 @@ export default function ProductDetailsClient({
             <span className="eyebrow">You May Also Like</span>
             <h2>Complete the edit</h2>
           </div>
-          <div className="prod-grid">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
             {relatedProducts.map((p, i) => {
               const palettes = ["palette-gold", "palette-mauve", "palette-milk", ""];
               const palette = palettes[i % palettes.length];

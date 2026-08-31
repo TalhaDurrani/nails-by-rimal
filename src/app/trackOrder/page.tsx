@@ -4,40 +4,32 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createBrowserClient } from "@supabase/ssr";
+import { trackOrderAction } from "./actions";
+
+const fulfillmentSteps = ["pending", "processing", "shipped", "delivered"];
 
 export default function TrackOrderPage() {
   const [trackingId, setTrackingId] = useState("");
+  const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [orderData, setOrderData] = useState<{ status: string; created_at: string; total: number; customer_name: string } | null>(null);
   const [error, setError] = useState("");
 
-  // Initialize Supabase client
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-
   const handleTrackOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!trackingId.trim()) return;
+    if (!trackingId.trim() || !email.trim()) return;
     
     setLoading(true);
     setError("");
     setOrderData(null);
 
-    // Fetch the order using the unique order_number (Tracking ID)
-    const { data, error } = await supabase
-      .from("orders")
-      .select("status, created_at, total, customer_name")
-      .eq("order_number", trackingId.trim())
-      .single();
+    const result = await trackOrderAction({ trackingId, email });
 
-    if (error || !data) {
-      setError("Order not found. Please double-check your Tracking ID.");
+    if (!result.success) {
+      setError(result.error);
     } else {
-      setOrderData(data);
+      setOrderData(result.order);
     }
     
     setLoading(false);
@@ -51,7 +43,7 @@ export default function TrackOrderPage() {
             Track Your Order
           </h2>
           <p className="mt-2 text-sm text-gray-600">
-            Enter your Tracking ID below to see your order status.
+            Enter your tracking ID and checkout email to see your order status.
           </p>
         </div>
         
@@ -64,6 +56,17 @@ export default function TrackOrderPage() {
               placeholder="e.g., NBR-123456"
               value={trackingId}
               onChange={(e) => setTrackingId(e.target.value)}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="email">Checkout Email</Label>
+            <Input
+              id="email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
               required
             />
           </div>
@@ -97,11 +100,33 @@ export default function TrackOrderPage() {
                 <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider 
                   ${orderData.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
                     orderData.status === 'shipped' ? 'bg-blue-100 text-blue-800' : 
-                    orderData.status === 'delivered' ? 'bg-green-100 text-green-800' : 
+                    orderData.status === 'delivered' ? 'bg-green-100 text-green-800' :
+                    orderData.status === 'processing' ? 'bg-purple-100 text-purple-800' :
+                    orderData.status === 'cancelled' ? 'bg-red-100 text-red-800' :
                     'bg-gray-100 text-gray-800'}`}>
                   {orderData.status}
                 </span>
               </div>
+              {orderData.status === "cancelled" ? (
+                <p className="mt-3 rounded border border-red-200 bg-red-50 p-3 text-red-700">
+                  This order was cancelled.
+                </p>
+              ) : (
+                <ol className="mt-4 grid grid-cols-4 gap-1" aria-label="Order progress">
+                  {fulfillmentSteps.map((step, index) => {
+                    const currentIndex = fulfillmentSteps.indexOf(orderData.status);
+                    const reached = index <= currentIndex;
+                    return (
+                      <li key={step} className="text-center">
+                        <div className={`mx-auto mb-1 h-2 w-full rounded ${reached ? "bg-[#BE7681]" : "bg-gray-200"}`} />
+                        <span className={`text-[10px] capitalize sm:text-xs ${reached ? "font-semibold text-gray-800" : "text-gray-400"}`}>
+                          {step}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ol>
+              )}
             </div>
           </div>
         )}

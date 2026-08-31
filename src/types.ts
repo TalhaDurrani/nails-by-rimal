@@ -3,12 +3,34 @@ export interface ProductType {
   title: string;
   description: string;
   price: number;
+  base_price?: number;
   image?: string;
   stock: number;
   sku?: string;
   category_id?: number;
+  is_featured?: boolean;
+  is_new?: boolean;
+  is_published?: boolean;
+  variants?: ProductVariantType[];
   created_at?: string;
   updated_at?: string;
+}
+
+export interface StoreOption {
+  id: string;
+  name: string;
+  description?: string | null;
+  price: number;
+  image_url?: string | null;
+}
+
+export interface StoreBundle {
+  id: string;
+  name: string;
+  description: string;
+  discount_percentage: number;
+  expires_at?: string | null;
+  products: ProductType[];
 }
 
 export interface ProductVariantType {
@@ -20,6 +42,9 @@ export interface ProductVariantType {
   stock_quantity: number;
   price_override?: number;
   sku?: string;
+  shape?: ShapeType;
+  length?: LengthType;
+  finish?: FinishType;
   created_at: string;
   updated_at: string;
 }
@@ -49,12 +74,11 @@ export interface FinishType {
 export interface CartItemType {
   id: number;
   cart_id: number;
-  product_id: string;
+  product_variant_id: number;
   quantity: number;
-  price: number;
   created_at: string;
   updated_at: string;
-  product?: ProductType;
+  variant?: ProductVariantType & { product?: ProductType };
 }
 
 export type CartStatus = "active" | "abandoned" | "converted";
@@ -74,18 +98,17 @@ export interface OrderItemType {
   id: number;
   order_id: number;
   quantity: number;
-  price: number;
-  product_id: string;
-  product?: {
-    product_id: string;
-    title: string;
-    image?: string;
-  };
+  price_at_purchase: number;
+  product_variant_id: number;
+  bundle_id?: string | null;
+  bundle_name?: string | null;
+  bundle_discount?: number | null;
+  variant?: ProductVariantType & { product?: ProductType };
 }
 
 export type OrderStatus =
   | "pending"
-  | "confirmed"
+  | "processing"
   | "shipped"
   | "delivered"
   | "cancelled";
@@ -106,6 +129,13 @@ export interface OrderType {
   shipping_fee: number;
   total: number;
   payment_method: string;
+  box_option_id?: string | null;
+  box_option_name?: string | null;
+  box_option_price?: number;
+  gift_packing_id?: string | null;
+  gift_packing_name?: string | null;
+  gift_packing_price?: number;
+  gift_message?: string | null;
   payment_id?: string;
   created_at?: string;
   updated_at?: string;
@@ -117,8 +147,7 @@ export interface AddressType {
   user_id: string;
   street: string;
   city: string;
-  state?: string;
-  zip_code: string;
+  postal_code?: string;
   country: string;
   is_default: boolean;
 }

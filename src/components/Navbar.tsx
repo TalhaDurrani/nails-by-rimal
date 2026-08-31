@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCart } from "@/context/CartContext";
-import { Heart, User, ShoppingBag, Menu, X } from "lucide-react";
+import { ShoppingBag, Menu, X } from "lucide-react";
 import { useState } from "react";
 import Image from "next/image";
 
@@ -15,13 +15,15 @@ export function Navbar() {
   const navLinks = [
     { label: "Home", href: "/" },
     { label: "Shop", href: "/products" },
+    { label: "Bundles", href: "/bundles" },
     { label: "About", href: "/about" },
     { label: "Contact", href: "/contact" },
+    { label: "Track Order", href: "/trackOrder" },
   ];
 
   return (
     <header className="sticky top-0 z-50 bg-[#FCF1ED]/85 backdrop-blur-[14px] border-b border-transparent">
-      <div className="max-w-[1220px] mx-auto px-6 md:px-10 py-4 flex items-center justify-between">
+      <div className="container mx-auto px-4 sm:px-6 md:px-8 lg:px-10 py-4 flex items-center justify-between">
         {/* Brand Logo & Name */}
         <Link href="/" className="brand flex items-center gap-3">
           <Image
@@ -40,7 +42,7 @@ export function Navbar() {
         </Link>
 
         {/* Desktop Navigation */}
-        <nav className="hidden md:block">
+        <nav className="hidden lg:block">
           <ul className="flex gap-[38px] text-[13px] tracking-[0.06em] uppercase font-light">
             {navLinks.map((link) => {
               const isActive =
@@ -68,12 +70,6 @@ export function Navbar() {
 
         {/* Action Icons */}
         <div className="flex items-center gap-[22px]">
-          <Link href="/wishlist" className="icon-btn text-[18px] text-[#2E2624] transition-colors duration-300 hover:text-[#BE7681]" aria-label="Wishlist">
-            <Heart className="w-5 h-5 stroke-[1.25]" />
-          </Link>
-          <Link href="/profile" className="icon-btn text-[18px] text-[#2E2624] transition-colors duration-300 hover:text-[#BE7681]" aria-label="Profile">
-            <User className="w-5 h-5 stroke-[1.25]" />
-          </Link>
           <Link href="/cart" className="icon-btn relative text-[18px] text-[#2E2624] transition-colors duration-300 hover:text-[#BE7681]" aria-label="Cart">
             <ShoppingBag className="w-5 h-5 stroke-[1.25]" />
             {totalItems > 0 && (
@@ -86,7 +82,7 @@ export function Navbar() {
           {/* Mobile Menu Burger */}
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="md:hidden text-[#2E2624] hover:text-[#BE7681] transition-colors duration-300"
+            className="lg:hidden text-[#2E2624] hover:text-[#BE7681] transition-colors duration-300"
             aria-label="Toggle Menu"
           >
             {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -99,7 +95,7 @@ export function Navbar() {
 
       {/* Mobile Drawer */}
       {isOpen && (
-        <div className="md:hidden bg-[#FCF1ED] border-b border-[#F4DAD3] px-6 py-6 absolute top-[calc(100%+1px)] left-0 w-full shadow-lg z-50">
+        <div className="lg:hidden bg-[#FCF1ED] border-b border-[#F4DAD3] px-6 py-6 absolute top-[calc(100%+1px)] left-0 w-full shadow-lg z-50">
           <ul className="flex flex-col gap-4 text-[14px] tracking-[0.1em] uppercase font-light">
             {navLinks.map((link) => {
               const isActive =

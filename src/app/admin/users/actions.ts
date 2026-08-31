@@ -19,6 +19,10 @@ export async function updateUserRoleAction(
       throw new Error("Unauthorized: Admin access required");
     }
 
+    if (currentUser.profile_id === userId && role !== "admin") {
+      throw new Error("You cannot remove your own administrator access");
+    }
+
     // Update user role
     const result = await adminUserServerService.updateUserRole(userId, role);
 

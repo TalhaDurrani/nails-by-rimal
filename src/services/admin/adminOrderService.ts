@@ -1,19 +1,5 @@
-import { supabase } from "@/lib/supabase/client";
-import { OrderType } from "@/types";
-
-// Strongly-typed helper interfaces
-interface OrderItemWithProductFromSupabase {
-  id: number;
-  order_id: number;
-  product_id: string;
-  quantity: number;
-  price: number;
-  products: {
-    product_id: string;
-    title: string;
-    image: string;
-  };
-}
+import { supabase } from '@/lib/supabase/client';
+import type { OrderStatus, OrderType } from '@/types';
 
 interface CustomerStat {
   userId: string;
@@ -23,11 +9,8 @@ interface CustomerStat {
   totalSpent: number;
 }
 
-export interface OrderWithDetails extends Omit<OrderType, "order_items"> {
-  profile?: {
-    username: string;
-    email: string;
-  };
+export interface OrderWithDetails extends OrderType {
+  profile?: { username: string; email: string };
   shipping_address?: {
     street: string;
     city: string;
@@ -35,18 +18,6 @@ export interface OrderWithDetails extends Omit<OrderType, "order_items"> {
     zip_code: string;
     country: string;
   };
-  order_items?: Array<{
-    id: number;
-    order_id: number;
-    product_id: string;
-    quantity: number;
-    price: number;
-    product: {
-      product_id: string;
-      title: string;
-      image: string;
-    };
-  }>;
 }
 
 export interface OrderFilters {
@@ -67,369 +38,157 @@ export interface OrderAnalytics {
   topCustomers: CustomerStat[];
 }
 
-/**
- * Admin service for order management
- * Requires admin privileges for all operations
- */
+const ADMIN_ORDER_SELECT = `
+  *,
+  profiles!orders_user_id_fkey(username, email)
+`;
+
+type AdminOrderRecord = OrderType & {
+  profiles?: { username?: string; email?: string } | null;
+};
+
+function mapOrder(order: AdminOrderRecord): OrderWithDetails {
+  return {
+    ...order,
+    profile: {
+      username: order.profiles?.username || order.customer_name,
+      email: order.profiles?.email || order.customer_email || 'Not provided',
+    },
+    shipping_address: {
+      street: order.address_street,
+      city: order.address_city,
+      state: order.address_province,
+      zip_code: order.address_postal_code || '',
+      country: 'Pakistan',
+    },
+  };
+}
+
 export const adminOrderService = {
-  /**
-   * Get all orders with filters and pagination
-   */
   async getAllOrders(
     filters: OrderFilters = {},
-    page: number = 1,
-    limit: number = 50,
+    page = 1,
+    limit = 50,
   ): Promise<{ orders: OrderWithDetails[]; total: number }> {
-    try {
-      let query = supabase.from("orders").select(`
-					*,
-					profiles!orders_user_id_fkey (
-						username,
-						email
-					),
-					addresses!orders_shipping_address_id_fkey (
-						street,
-						city,
-						state,
-						zip_code,
-						country
-					)
-				`);
+    const safePage = Math.max(1, page);
+    const safeLimit = Math.min(100, Math.max(1, limit));
+    let query = supabase
+      .from('orders')
+      .select(ADMIN_ORDER_SELECT, { count: 'exact' });
 
-      // Apply filters
-      if (filters.status) {
-        query = query.eq("status", filters.status);
-      }
-      if (filters.userId) {
-        query = query.eq("user_id", filters.userId);
-      }
-      if (filters.dateFrom) {
-        query = query.gte("created_at", filters.dateFrom);
-      }
-      if (filters.dateTo) {
-        query = query.lte("created_at", filters.dateTo);
-      }
-      if (filters.minAmount) {
-        query = query.gte("total", filters.minAmount);
-      }
-      if (filters.maxAmount) {
-        query = query.lte("total", filters.maxAmount);
-      }
+    if (filters.status) query = query.eq('status', filters.status);
+    if (filters.userId) query = query.eq('user_id', filters.userId);
+    if (filters.dateFrom) query = query.gte('created_at', filters.dateFrom);
+    if (filters.dateTo) query = query.lte('created_at', filters.dateTo);
+    if (filters.minAmount !== undefined) query = query.gte('total', filters.minAmount);
+    if (filters.maxAmount !== undefined) query = query.lte('total', filters.maxAmount);
 
-      // Get total count for pagination
-      const countQuery = supabase
-        .from("orders")
-        .select("*", { count: "exact", head: true });
-      const { count } = await countQuery;
+    const { data, error, count } = await query
+      .order('created_at', { ascending: false })
+      .range((safePage - 1) * safeLimit, safePage * safeLimit - 1);
 
-      // Get paginated results
-      const { data, error } = await query
-        .order("created_at", { ascending: false })
-        .range((page - 1) * limit, page * limit - 1);
-
-      if (error) {
-        console.error("Error fetching all orders:", error);
-        throw error;
-      }
-
-      // Format the data
-      const orders: OrderWithDetails[] = (data || []).map((order) => ({
-        ...order,
-        profile: order.profiles,
-        shipping_address: order.addresses,
-      }));
-
-      return {
-        orders,
-        total: count || 0,
-      };
-    } catch (err) {
-      console.error("Failed to get all orders:", err);
-      throw err;
-    }
+    if (error) throw new Error(`Unable to load orders: ${error.message}`);
+    return {
+      orders: ((data || []) as AdminOrderRecord[]).map(mapOrder),
+      total: count || 0,
+    };
   },
 
-  /**
-   * Get order details with items
-   */
   async getOrderDetails(orderId: number): Promise<OrderWithDetails | null> {
-    try {
-      const { data, error } = await supabase
-        .from("orders")
-        .select(
-          `
-					*,
-					profiles!orders_user_id_fkey (
-						username,
-						email
-					),
-					addresses!orders_shipping_address_id_fkey (
-						street,
-						city,
-						state,
-						zip_code,
-						country
-					),
-					order_items (
-						id,
-						quantity,
-						price,
-						products (
-							product_id,
-							title,
-							image
-						)
-					)
-				`,
-        )
-        .eq("id", orderId)
-        .single();
+    const { data, error } = await supabase
+      .from('orders')
+      .select(ADMIN_ORDER_SELECT)
+      .eq('id', orderId)
+      .maybeSingle();
 
-      if (error) {
-        console.error("Error fetching order details:", error);
-        throw error;
-      }
-
-      return {
-        ...data,
-        profile: data.profiles,
-        shipping_address: data.addresses,
-        order_items: (
-          data.order_items as OrderItemWithProductFromSupabase[] | undefined
-        )?.map((item) => ({
-          ...item,
-          product: item.products,
-        })),
-      };
-    } catch (err) {
-      console.error("Failed to get order details:", err);
-      return null;
-    }
+    if (error) throw new Error(`Unable to load order: ${error.message}`);
+    return data ? mapOrder(data as AdminOrderRecord) : null;
   },
 
-  /**
-   * Update order status
-   */
   async updateOrderStatus(orderId: number, status: string): Promise<OrderType> {
-    try {
-      const validStatuses = [
-        "pending",
-        "processing",
-        "shipped",
-        "delivered",
-        "cancelled",
-      ];
-
-      if (!validStatuses.includes(status)) {
-        throw new Error(`Invalid status: ${status}`);
-      }
-
-      const { data, error } = await supabase
-        .from("orders")
-        .update({
-          status,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", orderId)
-        .select()
-        .single();
-
-      if (error) {
-        console.error("Error updating order status:", error);
-        throw error;
-      }
-
-      return data;
-    } catch (err) {
-      console.error("Failed to update order status:", err);
-      throw err;
+    const validStatuses: OrderStatus[] = [
+      'pending',
+      'processing',
+      'shipped',
+      'delivered',
+      'cancelled',
+    ];
+    if (!validStatuses.includes(status as OrderStatus)) {
+      throw new Error(`Invalid status: ${status}`);
     }
+
+    const { data, error } = await supabase
+      .from('orders')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', orderId)
+      .select('*')
+      .single();
+
+    if (error) throw new Error(`Unable to update order: ${error.message}`);
+    return data as OrderType;
   },
 
-  /**
-   * Get order analytics
-   */
-  async getOrderAnalytics(): Promise<OrderAnalytics> {
-    try {
-      // Get all orders for analytics
-      const { data: orders, error } = await supabase
-        .from("orders")
-        .select(
-          `
-					*,
-					profiles (
-						username,
-						email
-					)
-				`,
-        )
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        console.error("Error fetching orders for analytics:", error);
-        throw error;
-      }
-
-      const allOrders = orders || [];
-
-      // Calculate basic metrics
-      const totalOrders = allOrders.length;
-      const totalRevenue = allOrders.reduce(
-        (sum, order) => sum + order.total,
-        0,
-      );
-      const averageOrderValue =
-        totalOrders > 0 ? totalRevenue / totalOrders : 0;
-
-      // Orders by status
-      const ordersByStatus = allOrders.reduce(
-        (acc, order) => {
-          acc[order.status] = (acc[order.status] || 0) + 1;
-          return acc;
-        },
-        {} as Record<string, number>,
-      );
-
-      // Recent orders (last 10)
-      const recentOrders = allOrders.slice(0, 10).map((order) => ({
-        ...order,
-        profile: order.profiles,
-      }));
-
-      // Top customers
-      const customerStats = allOrders.reduce<Record<string, CustomerStat>>(
-        (acc, order) => {
-          const userId = order.user_id;
-          if (!acc[userId]) {
-            acc[userId] = {
-              userId,
-              username: order.profiles?.username || "Unknown",
-              email: order.profiles?.email || "Unknown",
-              totalOrders: 0,
-              totalSpent: 0,
-            };
-          }
-          acc[userId].totalOrders += 1;
-          acc[userId].totalSpent += order.total;
-          return acc;
-        },
-        {},
-      );
-
-      const topCustomers: CustomerStat[] = Object.values(customerStats)
-        .sort((a, b) => b.totalSpent - a.totalSpent)
-        .slice(0, 10);
-
-      return {
-        totalOrders,
-        totalRevenue: Number(totalRevenue.toFixed(2)),
-        averageOrderValue: Number(averageOrderValue.toFixed(2)),
-        ordersByStatus,
-        recentOrders,
-        topCustomers,
-      };
-    } catch (err) {
-      console.error("Failed to get order analytics:", err);
-      return {
-        totalOrders: 0,
-        totalRevenue: 0,
-        averageOrderValue: 0,
-        ordersByStatus: {},
-        recentOrders: [],
-        topCustomers: [],
-      };
-    }
-  },
-
-  /**
-   * Cancel an order
-   */
   async cancelOrder(orderId: number): Promise<OrderType> {
-    try {
-      const { data, error } = await supabase
-        .from("orders")
-        .update({
-          status: "cancelled",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", orderId)
-        .select()
-        .single();
-
-      if (error) {
-        console.error("Error cancelling order:", error);
-        throw error;
-      }
-
-      // Optionally restore product stock
-      const orderDetails = await this.getOrderDetails(orderId);
-      if (orderDetails?.order_items) {
-        await Promise.all(
-          orderDetails.order_items.map(async (item) => {
-            // Get current stock
-            const { data: product } = await supabase
-              .from("products")
-              .select("stock")
-              .eq("product_id", item.product.product_id)
-              .single();
-
-            if (product) {
-              // Restore stock
-              await supabase
-                .from("products")
-                .update({
-                  stock: product.stock + item.quantity,
-                  updated_at: new Date().toISOString(),
-                })
-                .eq("product_id", item.product.product_id);
-            }
-          }),
-        );
-      }
-
-      return data;
-    } catch (err) {
-      console.error("Failed to cancel order:", err);
-      throw err;
-    }
+    return this.updateOrderStatus(orderId, 'cancelled');
   },
 
-  /**
-   * Get orders requiring attention (pending for too long, payment issues, etc.)
-   */
-  async getOrdersRequiringAttention(): Promise<OrderWithDetails[]> {
-    try {
-      const threeDaysAgo = new Date();
-      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+  async getOrderAnalytics(): Promise<OrderAnalytics> {
+    const { data, error } = await supabase
+      .from('orders')
+      .select(ADMIN_ORDER_SELECT)
+      .order('created_at', { ascending: false });
 
-      const { data, error } = await supabase
-        .from("orders")
-        .select(
-          `
-					*,
-					profiles (
-						username,
-						email
-					)
-				`,
-        )
-        .or(
-          `status.eq.pending.and.created_at.lt.${threeDaysAgo.toISOString()},status.eq.processing.and.created_at.lt.${threeDaysAgo.toISOString()}`,
-        )
-        .order("created_at", { ascending: true });
+    if (error) throw new Error(`Unable to load order analytics: ${error.message}`);
+    const allOrders = ((data || []) as AdminOrderRecord[]).map(mapOrder);
+    const revenueOrders = allOrders.filter((order) => order.status !== 'cancelled');
+    const totalRevenue = revenueOrders.reduce(
+      (sum, order) => sum + Number(order.total),
+      0,
+    );
+    const ordersByStatus = allOrders.reduce<Record<string, number>>((acc, order) => {
+      acc[order.status] = (acc[order.status] || 0) + 1;
+      return acc;
+    }, {});
 
-      if (error) {
-        console.error("Error fetching orders requiring attention:", error);
-        throw error;
+    const customerStats = allOrders.reduce<Record<string, CustomerStat>>((acc, order) => {
+      const userId = order.user_id || `guest:${order.customer_email || order.id}`;
+      if (!acc[userId]) {
+        acc[userId] = {
+          userId,
+          username: order.profile?.username || order.customer_name,
+          email: order.profile?.email || order.customer_email || 'Not provided',
+          totalOrders: 0,
+          totalSpent: 0,
+        };
       }
+      acc[userId].totalOrders += 1;
+      acc[userId].totalSpent += Number(order.total);
+      return acc;
+    }, {});
 
-      return (data || []).map((order) => ({
-        ...order,
-        profile: order.profiles,
-      }));
-    } catch (err) {
-      console.error("Failed to get orders requiring attention:", err);
-      return [];
-    }
+    return {
+      totalOrders: allOrders.length,
+      totalRevenue,
+      averageOrderValue: revenueOrders.length ? totalRevenue / revenueOrders.length : 0,
+      ordersByStatus,
+      recentOrders: allOrders.slice(0, 10),
+      topCustomers: Object.values(customerStats)
+        .sort((a, b) => b.totalSpent - a.totalSpent)
+        .slice(0, 10),
+    };
+  },
+
+  async getOrdersRequiringAttention(): Promise<OrderWithDetails[]> {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 3);
+    const { data, error } = await supabase
+      .from('orders')
+      .select(ADMIN_ORDER_SELECT)
+      .in('status', ['pending', 'processing'])
+      .lt('created_at', cutoff.toISOString())
+      .order('created_at', { ascending: true });
+
+    if (error) throw new Error(`Unable to load attention orders: ${error.message}`);
+    return ((data || []) as AdminOrderRecord[]).map(mapOrder);
   },
 };

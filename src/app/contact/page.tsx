@@ -2,10 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { submitContactMessage } from "./actions";
 
 export default function ContactPage() {
   const [openFaq, setOpenFaq] = useState<number>(0);
   const [isSent, setIsSent] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [formError, setFormError] = useState("");
 
   // Animation for reveal elements
   useEffect(() => {
@@ -17,16 +20,32 @@ export default function ContactPage() {
           io.unobserve(entry.target);
         }
       });
-    }, { threshold: 0.15 });
+    }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
 
     revealEls.forEach((el) => io.observe(el));
     return () => io.disconnect();
   }, []);
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    (e.target as HTMLFormElement).reset();
-    setIsSent(true);
+    setIsSending(true);
+    setIsSent(false);
+    setFormError("");
+    const form = e.currentTarget;
+    const data = new FormData(form);
+    const result = await submitContactMessage({
+      name: data.get("name"),
+      email: data.get("email"),
+      subject: data.get("subject"),
+      message: data.get("message"),
+    });
+    setIsSending(false);
+    if (result.success) {
+      form.reset();
+      setIsSent(true);
+    } else {
+      setFormError(result.error);
+    }
   };
 
   return (
@@ -60,10 +79,6 @@ export default function ContactPage() {
               <div><h4>Email</h4><p>hello@nailsbyrimal.com</p></div>
             </div>
             <div className="contact-info-card">
-              <div className="ci-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.08 4.18 2 2 0 0 1 4.06 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.68 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.2a2 2 0 0 1 2.11-.45c.9.32 1.85.55 2.81.68A2 2 0 0 1 22 16.92z"/></svg></div>
-              <div><h4>WhatsApp</h4><p>+92 3xx xxxxxxx &middot; 10am–7pm, Mon–Sat</p></div>
-            </div>
-            <div className="contact-info-card">
               <div className="ci-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
               <div><h4>Studio Hours</h4><p>Monday – Saturday, 10am – 7pm PKT</p></div>
             </div>
@@ -76,13 +91,13 @@ export default function ContactPage() {
               <h3>Send us a message</h3>
               <form onSubmit={handleFormSubmit}>
                 <div className="form-row">
-                  <div className="form-field"><label>Name</label><input type="text" placeholder="Your name" required /></div>
-                  <div className="form-field"><label>Email</label><input type="email" placeholder="you@email.com" required /></div>
+                  <div className="form-field"><label htmlFor="contact-name">Name</label><input id="contact-name" name="name" type="text" placeholder="Your name" required /></div>
+                  <div className="form-field"><label htmlFor="contact-email">Email</label><input id="contact-email" name="email" type="email" placeholder="you@email.com" required /></div>
                 </div>
                 <div className="form-row">
                   <div className="form-field full">
-                    <label>Subject</label>
-                    <select>
+                    <label htmlFor="contact-subject">Subject</label>
+                    <select id="contact-subject" name="subject">
                       <option>Order Enquiry</option>
                       <option>Sizing Help</option>
                       <option>Wholesale</option>
@@ -92,11 +107,18 @@ export default function ContactPage() {
                 </div>
                 <div className="form-row">
                   <div className="form-field full">
-                    <label>Message</label>
-                    <textarea rows={5} placeholder="Tell us a little about what you need..." style={{ border: '1px solid var(--blush-2)', borderRadius: '12px', padding: '12px 15px', fontFamily: '"Jost", sans-serif', fontSize: '13.5px', background: 'var(--cream-2)', outline: 'none', color: 'var(--ink)', resize: 'vertical' }} required></textarea>
+                    <label htmlFor="contact-message">Message</label>
+                    <textarea id="contact-message" name="message" minLength={10} maxLength={3000} rows={5} placeholder="Tell us a little about what you need..." style={{ border: '1px solid var(--blush-2)', borderRadius: '12px', padding: '12px 15px', fontFamily: '"Jost", sans-serif', fontSize: '13.5px', background: 'var(--cream-2)', outline: 'none', color: 'var(--ink)', resize: 'vertical' }} required></textarea>
                   </div>
                 </div>
-                <button type="submit" className="btn btn-fill btn-block">Send Message</button>
+                <button type="submit" className="btn btn-fill btn-block" disabled={isSending}>
+                  {isSending ? "Sending…" : "Send Message"}
+                </button>
+                {formError && (
+                  <p role="alert" style={{ textAlign: 'center', color: '#b91c1c', fontSize: '13px', marginTop: '16px' }}>
+                    {formError}
+                  </p>
+                )}
                 {isSent && (
                   <p style={{ textAlign: 'center', color: 'var(--rose-deep)', fontSize: '13px', marginTop: '16px' }}>
                     Thank you — we&apos;ll be in touch soon &#10084;
@@ -117,7 +139,7 @@ export default function ContactPage() {
           </div>
 
           {[
-            { q: "How long does delivery take?", a: "Orders ship within 2–4 business days across Pakistan, with tracking sent via email and WhatsApp." },
+            { q: "How long does delivery take?", a: "Orders ship within 2–4 business days across Pakistan, with the tracking ID sent to the checkout email." },
             { q: "Can I reuse my press-ons?", a: "Yes — with gentle removal and flat storage, most sets can be reused for up to 10 wears." },
             { q: "What if the sizing doesn't fit?", a: "Every set includes 2 sizes per finger position. If nothing fits, our sizing guide and support team will help you exchange." },
             { q: "Do you offer wholesale or custom sets?", a: "We do! Reach out via the form above with \"Wholesale\" selected and our studio will follow up with details." }
