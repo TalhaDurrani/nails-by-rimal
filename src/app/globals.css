@@ -108,8 +108,36 @@ h1, h2, h3, .script {
   background: var(--gold-line);
 }
 
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 48px;
+  max-width: 100%;
+  padding: 12px 28px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  text-align: center;
+  text-decoration: none;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+  transition: background-color .2s, color .2s, transform .2s, box-shadow .2s;
+}
+
+.btn > svg {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+
 .btn-fill {
-  background: linear-gradient(135deg, var(--rose-deep), var(--gold));
+  background: linear-gradient(135deg, #94505d, #806035);
   color: var(--white) !important;
   box-shadow: 0 12px 30px -10px rgba(190, 118, 129, 0.55);
 }
