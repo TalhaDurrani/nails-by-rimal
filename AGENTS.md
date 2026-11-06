@@ -42,6 +42,7 @@ The existing administrator profile was preserved. Do not rerun the reset script 
 
 ## Operational setup
 
+- `vercel.json` uses `npm ci --legacy-peer-deps` to match local dependency installation; preserve this for Git-triggered deployments.
 - Required Supabase variables are documented in `.env.example`.
 - Tracking email delivery additionally needs `EMAIL_USER`, `EMAIL_PASS`, and `NEXT_PUBLIC_SITE_URL`.
 - Email failure must never roll back an otherwise successful order; the tracking ID is always shown on the success screen.

@@ -147,3 +147,6 @@ npm install</code></pre>
 
 <h2 id="license">License</h2>
 <p>Private project. Proprietary to the Nails by Rimal business.</p>
+
+<h2>Vercel Dependency Installation</h2>
+<p><code>vercel.json</code> uses <code>npm ci --legacy-peer-deps</code> to match local dependency installation and keep Git-triggered deployments reproducible.</p>
