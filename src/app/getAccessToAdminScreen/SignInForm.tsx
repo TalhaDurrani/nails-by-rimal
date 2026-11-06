@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import {
   AlertCircle,
   Eye,
@@ -317,6 +318,10 @@ export default function SignInForm() {
               </Button>
 
             </form>
+
+            <Link href="/getAccessToAdminScreen/recovery" className="mt-4 block text-center text-sm underline">
+              Forgot password?
+            </Link>
 
             {/* Security notice */}
             <div className="mt-6 flex items-center justify-center gap-2 text-xs text-slate-400">

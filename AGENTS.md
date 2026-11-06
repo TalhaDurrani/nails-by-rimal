@@ -37,11 +37,15 @@ The current project has already successfully run:
 3. `supabase/migrations/010_security_and_commerce_hardening.sql`
 4. `supabase/migrations/011_complete_bundles_and_packaging_checkout.sql`
 5. `supabase/VERIFY_INSTALL.sql`
+6. `supabase/migrations/012_public_action_rate_limits.sql`
 
 The existing administrator profile was preserved. Do not rerun the reset script or destructive migrations unless the developer explicitly requests a database reset. New schema changes should normally be added as a new numbered migration.
 
 ## Operational setup
 
+- Migration `012_public_action_rate_limits.sql` must be installed before deploying public-action rate limiting. It adds an atomic, service-role-only limiter; local requests share one fallback bucket, while Vercel uses its edge-overwritten IP header.
+- Public Supabase signups are disabled. Create additional administrators through authorized administrative tooling only.
+- Admin recovery lives under `/getAccessToAdminScreen/recovery`. Supabase Site URL must be the production origin and the exact `/getAccessToAdminScreen/recovery/callback` URL must be allowlisted. Recovery requires opening the email in the initiating browser (PKCE).
 - `vercel.json` uses `npm ci --legacy-peer-deps` to match local dependency installation; preserve this for Git-triggered deployments.
 - Required Supabase variables are documented in `.env.example`.
 - Tracking email delivery additionally needs `EMAIL_USER`, `EMAIL_PASS`, and `NEXT_PUBLIC_SITE_URL`.

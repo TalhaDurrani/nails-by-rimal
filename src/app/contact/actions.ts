@@ -1,10 +1,9 @@
 'use server';
 
-import { createHash } from 'node:crypto';
-import { headers } from 'next/headers';
 import { z } from 'zod';
 import { createAdminSupabase } from '@/lib/supabase/admin';
 import { transporter } from '@/lib/nodemailer';
+import { allowPublicAction, getClientKey } from '@/lib/action-rate-limit';
 
 const contactSchema = z.object({
   name: z.string().trim().min(2).max(120),
@@ -19,15 +18,10 @@ export async function submitContactMessage(input: unknown) {
     return { success: false as const, error: 'Please check all message fields.' };
   }
 
-  const headerStore = await headers();
-  const forwardedAddresses = headerStore.get('x-forwarded-for')?.split(',');
-  const forwarded = forwardedAddresses?.[forwardedAddresses.length - 1]?.trim();
-  const address =
-    headerStore.get('cf-connecting-ip') ||
-    headerStore.get('x-real-ip') ||
-    forwarded ||
-    `email:${parsed.data.email}`;
-  const clientKey = createHash('sha256').update(address).digest('hex');
+  if (!(await allowPublicAction('contact'))) {
+    return { success: false as const, error: 'Unable to send your message right now. Please try again later.' };
+  }
+  const clientKey = await getClientKey();
   const since = new Date(Date.now() - 15 * 60 * 1000).toISOString();
   const supabase = createAdminSupabase();
   const { count, error: countError } = await supabase

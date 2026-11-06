@@ -36,3 +36,4 @@ dist
 .agents
 .claude
 .npmrc
+supabase/.temp/

@@ -3,8 +3,7 @@
 import { z } from 'zod';
 import { createOrderService } from '@/services/order/createOrder';
 import { sendOrderConfirmationEmail } from '@/lib/nodemailer';
-import { headers } from 'next/headers';
-import { createHash } from 'node:crypto';
+import { getClientKey } from '@/lib/action-rate-limit';
 import { getCheckoutOptions } from '@/services/storefront/storefrontOptions';
 
 const customerSchema = z.object({
@@ -64,15 +63,7 @@ export async function processGuestCheckout(
   }
 
   try {
-    const headerStore = await headers();
-    const forwardedAddresses = headerStore.get('x-forwarded-for')?.split(',');
-    const forwarded = forwardedAddresses?.[forwardedAddresses.length - 1]?.trim();
-    const clientAddress =
-      headerStore.get('cf-connecting-ip') ||
-      headerStore.get('x-real-ip') ||
-      forwarded ||
-      `email:${customerResult.data.email.toLowerCase()}`;
-    const clientKey = createHash('sha256').update(clientAddress).digest('hex');
+    const clientKey = await getClientKey();
 
     const order = await createOrderService(
       requestKeyResult.data,

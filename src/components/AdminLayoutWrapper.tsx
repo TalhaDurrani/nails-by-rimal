@@ -11,7 +11,7 @@ interface AdminLayoutWrapperProps {
 export function AdminLayoutWrapper({ children }: AdminLayoutWrapperProps) {
   const pathname = usePathname();
   const isAdminRoute = pathname?.startsWith('/admin');
-  const isAdminLoginRoute = pathname === '/getAccessToAdminScreen';
+  const isAdminLoginRoute = pathname?.startsWith('/getAccessToAdminScreen');
 
   if (isAdminRoute || isAdminLoginRoute) {
     // For admin routes, only render children without Navbar and Footer

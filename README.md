@@ -149,4 +149,5 @@ npm install</code></pre>
 <p>Private project. Proprietary to the Nails by Rimal business.</p>
 
 <h2>Vercel Dependency Installation</h2>
+<p>Security setup: apply <code>supabase/migrations/012_public_action_rate_limits.sql</code> before deploying the public-action limiter. Admin password recovery is at <code>/getAccessToAdminScreen/recovery</code>. Set Supabase's Site URL to the production origin and allowlist its exact <code>/getAccessToAdminScreen/recovery/callback</code> URL. Open recovery emails in the browser that requested them (PKCE). Password changes require an authenticated admin and sign out existing sessions.</p>
 <p><code>vercel.json</code> uses <code>npm ci --legacy-peer-deps</code> to match local dependency installation and keep Git-triggered deployments reproducible.</p>

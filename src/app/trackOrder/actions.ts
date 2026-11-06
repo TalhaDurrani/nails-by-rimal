@@ -2,6 +2,8 @@
 
 import { z } from 'zod';
 import { createAdminSupabase } from '@/lib/supabase/admin';
+import { literalEmailPattern } from '@/lib/email-pattern';
+import { allowPublicAction } from '@/lib/action-rate-limit';
 
 const trackingSchema = z.object({
   trackingId: z
@@ -18,12 +20,15 @@ export async function trackOrderAction(input: unknown) {
     return { success: false as const, error: 'Enter a valid tracking ID and email address.' };
   }
 
+  if (!(await allowPublicAction('tracking'))) {
+    return { success: false as const, error: 'Unable to look up orders right now. Please try again later.' };
+  }
   const supabase = createAdminSupabase();
   const { data, error } = await supabase
     .from('orders')
     .select('status, created_at, total, customer_name')
     .eq('order_number', parsed.data.trackingId)
-    .ilike('customer_email', parsed.data.email)
+    .ilike('customer_email', literalEmailPattern(parsed.data.email))
     .maybeSingle();
 
   if (error) console.error('Order tracking query failed:', error);

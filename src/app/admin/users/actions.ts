@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/services/auth/authServerService";
 import { adminUserServerService } from "@/services/admin/adminUserServerService";
+import { z } from "zod";
 
 /**
  * Server action to update user role
@@ -13,6 +14,8 @@ export async function updateUserRoleAction(
   role: "admin" | "user",
 ) {
   try {
+    z.uuid().parse(userId);
+    z.enum(["admin", "user"]).parse(role);
     // Verify current user is admin
     const currentUser = await getCurrentUser();
     if (!currentUser || currentUser.role !== "admin") {
@@ -50,6 +53,7 @@ export async function updateUserRoleAction(
  */
 export async function deleteUserAction(userId: string) {
   try {
+    z.uuid().parse(userId);
     // Verify current user is admin
     const currentUser = await getCurrentUser();
     if (!currentUser || currentUser.role !== "admin") {
